@@ -366,18 +366,4 @@ export function useTransactions() {
   };
 }
 
-// ─── Tab Config ───
 
-export const TAB_CONFIG: {
-  id: ActiveTab;
-  label: string;
-  icon: string;
-}[] = [
-  { id: "dashboard", label: "Dashboard", icon: "LayoutDashboard" },
-  { id: "notes", label: "Notes", icon: "FileText" },
-  { id: "tasks", label: "Tasks", icon: "CheckSquare" },
-  { id: "calendar", label: "Calendar", icon: "CalendarDays" },
-  { id: "finance", label: "Finance", icon: "Wallet" },
-  { id: "csv", label: "CSV Editor", icon: "FileSpreadsheet" },
-  { id: "profile", label: "Profile", icon: "User" },
-];

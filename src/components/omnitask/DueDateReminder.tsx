@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Bell, AlertTriangle, Clock, CalendarCheck, X, ChevronDown } from "lucide-react";
-import type { Task, LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { Task as TaskType } from "./data";
 
 export function DueDateReminder({

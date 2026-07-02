@@ -28,12 +28,6 @@ interface TasksViewProps {
   deleteTask: (id: string) => Promise<void>;
 }
 
-const PRIORITY_COLORS = {
-  high: "bg-destructive",
-  medium: "bg-amber-500",
-  low: "bg-blue-500",
-} as const;
-
 const PRIORITY_LABELS = {
   high: "High",
   medium: "Medium",

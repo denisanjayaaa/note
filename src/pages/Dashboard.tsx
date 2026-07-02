@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -12,9 +12,8 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import { useNavigate, Navigate } from "react-router";
+import { Navigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
-import { ThemeToggle } from "@/components/omnitask/ThemeToggle";
 import { GlobalSearch } from "@/components/omnitask/GlobalSearch";
 import { DashboardView } from "@/components/omnitask/DashboardView";
 import { NotesView } from "@/components/omnitask/NotesView";
@@ -25,7 +24,7 @@ import { CsvEditor } from "@/components/omnitask/CsvEditor";
 import { ProfileView } from "@/components/omnitask/ProfileView";
 import { ThemeProvider, useNotes, useTasks, useTransactions } from "@/components/omnitask/data";
 import type { ActiveTab } from "@/components/omnitask/data";
-import { ThemeToggle as StudioThemeToggle } from "@/components/omnitask/ThemeToggle";
+import { ThemeToggle } from "@/components/omnitask/ThemeToggle";
 
 const NAV_ITEMS: { id: ActiveTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -39,7 +38,6 @@ const NAV_ITEMS: { id: ActiveTab; label: string; icon: typeof LayoutDashboard }[
 
 function DashboardShell() {
   const { isAuthenticated, isLoading } = useAuth();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -71,10 +69,10 @@ function DashboardShell() {
     []
   );
 
-  useState(() => {
+  useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  });
+  }, [handleKeyDown]);
 
   if (isLoading) {
     return (
@@ -174,7 +172,7 @@ function DashboardShell() {
               >
                 <Search size={16} />
               </button>
-              <StudioThemeToggle />
+              <ThemeToggle />
             </div>
           </header>
 

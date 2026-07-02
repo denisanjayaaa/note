@@ -63,8 +63,8 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
   };
 
   const copyUserId = async () => {
-    if (!user?.id) return;
-    await navigator.clipboard.writeText(user.id);
+    if (!user?._id) return;
+    await navigator.clipboard.writeText(user._id);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -123,7 +123,7 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
                 <p className="text-xs text-muted-foreground">User ID</p>
                 <div className="flex items-center gap-2">
                   <p className="truncate font-mono text-xs text-muted-foreground">
-                    {user?.id || "—"}
+                    {user?._id || "—"}
                   </p>
                   <button
                     onClick={copyUserId}
