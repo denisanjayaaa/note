@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Upload,
@@ -6,6 +6,8 @@ import {
   Plus,
   Trash2,
   FileSpreadsheet,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -17,7 +19,56 @@ export function CsvEditor() {
     ["Charlie", "Manager", "Surabaya"],
   ]);
   const [pasteValue, setPasteValue] = useState("");
+  const [copiedAll, setCopiedAll] = useState(false);
+  const [copiedCol, setCopiedCol] = useState<number | null>(null);
+  const [copiedRow, setCopiedRow] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Copy helpers
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+  }, []);
+
+  const copyAll = useCallback(async () => {
+    const csv = data
+      .map((r) =>
+        r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")
+      )
+      .join("\n");
+    await copyToClipboard(csv);
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
+  }, [data, copyToClipboard]);
+
+  const copyColumn = useCallback(async (colIdx: number) => {
+    const columnData = data
+      .map((r) => r[colIdx] || "")
+      .join("\n");
+    await copyToClipboard(columnData);
+    setCopiedCol(colIdx);
+    setTimeout(() => setCopiedCol(null), 2000);
+  }, [data, copyToClipboard]);
+
+  const copyRow = useCallback(async (rowIdx: number) => {
+    const rowData = data[rowIdx]
+      .map((c) => `"${c.replace(/"/g, '""')}"`)
+      .join(",");
+    await copyToClipboard(rowData);
+    setCopiedRow(rowIdx);
+    setTimeout(() => setCopiedRow(null), 2000);
+  }, [data, copyToClipboard]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -150,7 +201,7 @@ export function CsvEditor() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -167,6 +218,19 @@ export function CsvEditor() {
         >
           <Plus size={13} /> Column
         </Button>
+        <span className="mx-1 h-4 w-px bg-border" />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={copyAll}
+          className="gap-1.5"
+        >
+          {copiedAll ? (
+            <><Check size={13} className="text-emerald-500" /> Copied!</>
+          ) : (
+            <><Copy size={13} /> Copy All</>
+          )}
+        </Button>
       </div>
 
       {/* Data table */}
@@ -178,10 +242,22 @@ export function CsvEditor() {
               {data[0]?.map((_, ci) => (
                 <th key={ci} className="relative px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
                   <div className="flex items-center gap-1">
-                    <span className="truncate">Column {ci + 1}</span>
+                    <button
+                      onClick={() => copyColumn(ci)}
+                      className="shrink-0 rounded p-0.5 text-muted-foreground/40 transition-colors hover:text-foreground"
+                      title="Copy column"
+                    >
+                      {copiedCol === ci ? (
+                        <Check size={11} className="text-emerald-500" />
+                      ) : (
+                        <Copy size={11} />
+                      )}
+                    </button>
+                    <span className="truncate">Col {ci + 1}</span>
                     <button
                       onClick={() => deleteColumn(ci)}
                       className="shrink-0 rounded p-0.5 text-muted-foreground/40 hover:text-destructive"
+                      title="Delete column"
                     >
                       <Trash2 size={11} />
                     </button>
@@ -192,11 +268,23 @@ export function CsvEditor() {
           </thead>
           <tbody>
             {data.map((row, ri) => (
-              <tr key={ri} className="border-b border-border last:border-b-0 hover:bg-accent/30">
-                <td className="px-2 py-1.5">
+              <tr key={ri} className="border-b border-border last:border-b-0 hover:bg-accent/30 group">
+                <td className="flex items-center gap-0.5 px-2 py-1.5">
+                  <button
+                    onClick={() => copyRow(ri)}
+                    className="rounded p-0.5 text-muted-foreground/40 opacity-0 transition-all hover:text-foreground group-hover:opacity-100"
+                    title="Copy row"
+                  >
+                    {copiedRow === ri ? (
+                      <Check size={11} className="text-emerald-500" />
+                    ) : (
+                      <Copy size={11} />
+                    )}
+                  </button>
                   <button
                     onClick={() => deleteRow(ri)}
                     className="rounded p-0.5 text-muted-foreground/40 hover:text-destructive"
+                    title="Delete row"
                   >
                     <Trash2 size={11} />
                   </button>
