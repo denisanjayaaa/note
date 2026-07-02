@@ -89,17 +89,17 @@ function DashboardShell() {
   return (
     <ThemeProvider>
       <div className="flex min-h-screen bg-background">
-        {/* Mobile sidebar backdrop */}
+        {/* Sidebar backdrop */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
         {/* Sidebar */}
         <aside
-          className={`fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-border bg-card transition-transform lg:relative lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-border bg-card shadow-lg transition-transform duration-200 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -112,7 +112,7 @@ function DashboardShell() {
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="rounded-md p-1 text-muted-foreground hover:bg-accent lg:hidden"
+              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
             >
               <X size={16} />
             </button>
@@ -150,7 +150,8 @@ function DashboardShell() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent lg:hidden"
+                className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent"
+                title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
               >
                 <Menu size={18} />
               </button>
