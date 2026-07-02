@@ -90,58 +90,71 @@ function DashboardShell() {
     <ThemeProvider>
       <div className="flex min-h-screen bg-background">
         {/* Sidebar backdrop */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/20"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+        </AnimatePresence>
 
         {/* Sidebar */}
-        <aside
-          className={`fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-border bg-card shadow-lg transition-transform duration-200 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="flex h-14 items-center justify-between border-b border-border px-5">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground/10 text-xs font-bold">
-                O
-              </div>
-              <span className="text-sm font-semibold">Workspace</span>
-            </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.aside
+              key="sidebar"
+              initial={{ x: -224 }}
+              animate={{ x: 0 }}
+              exit={{ x: -224 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-border bg-card shadow-lg"
             >
-              <X size={16} />
-            </button>
-          </div>
-          <nav className="flex-1 space-y-1 p-3">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              return (
+              <div className="flex h-14 items-center justify-between border-b border-border px-5">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-foreground/10 text-xs font-bold">
+                    O
+                  </div>
+                  <span className="text-sm font-semibold">Workspace</span>
+                </div>
                 <button
-                  key={item.id}
-                  onClick={() => handleNavigate(item.id)}
-                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                    activeTab === item.id
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-                  }`}
+                  onClick={() => setSidebarOpen(false)}
+                  className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
                 >
-                  <Icon size={16} />
-                  {item.label}
+                  <X size={16} />
                 </button>
-              );
-            })}
-          </nav>
-          <div className="border-t border-border p-3">
-            <p className="text-[10px] text-muted-foreground/60">
-              Workspace v1.0
-            </p>
-          </div>
-        </aside>
+              </div>
+              <nav className="flex-1 space-y-1 p-3">
+                {NAV_ITEMS.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavigate(item.id)}
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        activeTab === item.id
+                          ? "bg-accent text-accent-foreground"
+                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                      }`}
+                    >
+                      <Icon size={16} />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </nav>
+              <div className="border-t border-border p-3">
+                <p className="text-[10px] text-muted-foreground/60">
+                  Workspace v1.0
+                </p>
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
 
         {/* Main content */}
         <div className="flex flex-1 flex-col">
