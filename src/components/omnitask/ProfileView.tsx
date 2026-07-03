@@ -298,6 +298,19 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Username state
+  const [editUsername, setEditUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [usernameSaved, setUsernameSaved] = useState(false);
+
+  // Email OTP state
+  const [editEmail, setEditEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSaved, setEmailSaved] = useState(false);
+
   const shortUserId = useMemo(() => {
     if (!user?._id) return "------";
     return generateShortId(user._id);
@@ -472,13 +485,220 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
             Identity
           </h3>
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <Mail size={14} className="text-muted-foreground" />
-              <div>
-                <p className="text-xs text-muted-foreground">Email</p>
-                <p className="text-sm font-medium">{user?.email || "—"}</p>
+            {/* Username */}
+            <div className="flex items-start gap-3">
+              <User size={14} className="mt-0.5 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">Username</p>
+                {editingUsername ? (
+                  <div className="mt-1 space-y-1.5">
+                    <Input
+                      value={editUsername}
+                      onChange={(e) => {
+                        setEditUsername(e.target.value);
+                        setUsernameError("");
+                      }}
+                      placeholder="your-username"
+                      className="h-7 w-full text-xs"
+                    />
+                    {usernameError && (
+                      <p className="text-[10px] text-destructive">{usernameError}</p>
+                    )}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={async () => {
+                          setUsernameError("");
+                          const u = editUsername.trim();
+                          if (u.length < 3) { setUsernameError("Min 3 characters"); return; }
+                          if (!/^[a-zA-Z0-9_-]+$/.test(u)) { setUsernameError("Only letters, numbers, _ and -"); return; }
+                          setSaving(true);
+                          try {
+                            await updateProfile({ username: u });
+                            setUsernameSaved(true);
+                            setEditingUsername(false);
+                            setTimeout(() => setUsernameSaved(false), 2000);
+                          } catch (e) {
+                            setUsernameError((e as Error).message);
+                          }
+                          setSaving(false);
+                        }}
+                        disabled={saving}
+                        className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[10px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                      >
+                        <Save size={10} />
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingUsername(false);
+                          setEditUsername(user?.username || "");
+                          setUsernameError("");
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium transition-colors hover:bg-accent"
+                      >
+                        <X size={10} />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-sm font-medium text-foreground">
+                        {user?.username || "—"}
+                      </span>
+                      {usernameSaved && <CheckCircle2 size={12} className="text-emerald-500" />}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEditUsername(user?.username || "");
+                        setEditingUsername(true);
+                      }}
+                      className="text-muted-foreground/50 hover:text-muted-foreground"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                  </div>
+                )}
+                <p className="mt-0.5 text-[10px] text-muted-foreground/60">Min 3 chars, only letters, numbers, _ and -</p>
               </div>
             </div>
+
+            {/* Email */}
+            <div className="flex items-start gap-3">
+              <Mail size={14} className="mt-0.5 text-muted-foreground" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">Email</p>
+                {editingEmail ? (
+                  <div className="mt-1 space-y-1.5">
+                    {!otpSent ? (
+                      <>
+                        <Input
+                          value={editEmail}
+                          onChange={(e) => {
+                            setEditEmail(e.target.value);
+                            setEmailError("");
+                          }}
+                          placeholder="new@email.com"
+                          className="h-7 w-full text-xs"
+                        />
+                        {emailError && (
+                          <p className="text-[10px] text-destructive">{emailError}</p>
+                        )}
+                        <div className="flex gap-1">
+                          <button
+                            onClick={async () => {
+                              setEmailError("");
+                              const e = editEmail.trim();
+                              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
+                                setEmailError("Invalid email format");
+                                return;
+                              }
+                              setEmailSaving(true);
+                              try {
+                                await signIn("email-otp", { email: e });
+                                setOtpSent(true);
+                              } catch (err) {
+                                setEmailError((err as Error).message || "Failed to send OTP");
+                              }
+                              setEmailSaving(false);
+                            }}
+                            disabled={emailSaving}
+                            className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[10px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                          >
+                            {emailSaving ? "Sending..." : "Send OTP"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingEmail(false);
+                              setEditEmail("");
+                              setOtpSent(false);
+                              setOtpCode("");
+                              setEmailError("");
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium transition-colors hover:bg-accent"
+                          >
+                            <X size={10} />
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-[10px] text-emerald-600">
+                          OTP sent to {editEmail}
+                        </p>
+                        <Input
+                          value={otpCode}
+                          onChange={(e) => {
+                            setOtpCode(e.target.value);
+                            setEmailError("");
+                          }}
+                          placeholder="Enter 6-digit code"
+                          className="h-7 w-36 text-xs font-mono tracking-widest"
+                          maxLength={6}
+                        />
+                        {emailError && (
+                          <p className="text-[10px] text-destructive">{emailError}</p>
+                        )}
+                        <div className="flex gap-1">
+                          <button
+                            onClick={async () => {
+                              if (otpCode.length < 6) { setEmailError("Enter the 6-digit code"); return; }
+                              setEmailSaving(true);
+                              try {
+                                await signIn("email-otp", { email: editEmail, code: otpCode, flow: "email-verify" });
+                                await updateEmail({ email: editEmail });
+                                setEmailSaved(true);
+                                setEditingEmail(false);
+                                setOtpSent(false);
+                                setOtpCode("");
+                                setTimeout(() => setEmailSaved(false), 3000);
+                              } catch (err) {
+                                setEmailError((err as Error).message || "Invalid code");
+                              }
+                              setEmailSaving(false);
+                            }}
+                            disabled={emailSaving}
+                            className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-0.5 text-[10px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                          >
+                            <CheckCircle2 size={10} />
+                            {emailSaving ? "Verifying..." : "Verify & Update"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setOtpSent(false);
+                              setOtpCode("");
+                              setEmailError("");
+                            }}
+                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[10px] font-medium transition-colors hover:bg-accent"
+                          >
+                            Resend OTP
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      {user?.email || "—"}
+                      {emailSaved && <CheckCircle2 size={12} className="ml-1 inline text-emerald-500" />}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditEmail(user?.email || "");
+                        setEditingEmail(true);
+                      }}
+                      className="text-muted-foreground/50 hover:text-muted-foreground"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center gap-3">
               <Copy size={14} className="text-muted-foreground" />
               <div className="flex-1 min-w-0">
