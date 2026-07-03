@@ -1,6 +1,6 @@
-import { useCallback } from "react";
+import { useCallback, useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Code2, ExternalLink, FileCode, FolderOpen, GitBranch, Sparkles, Terminal } from "lucide-react";
+import { Code2, ExternalLink, FileCode, FolderOpen, GitBranch, Sparkles, Terminal, Maximize2, Minimize2 } from "lucide-react";
 import sdk from "@stackblitz/sdk";
 
 const FILES: Record<string, string> = {
@@ -39,6 +39,14 @@ export default function App() {
   );
 }`,
 
+  "src/index.css": `@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+  :root { --background: oklch(0.97 0.008 80); --foreground: oklch(0.22 0.01 60); }
+  .dark { --background: oklch(0.92 0.008 85); --foreground: oklch(0.18 0.01 60); }
+}`,
+
   "src/convex/auth.ts": `import { convexAuth } from "@convex-dev/auth/server";
 import { Anonymous } from "@convex-dev/auth/providers/Anonymous";
 import { emailOtp } from "./auth/emailOtp";
@@ -57,6 +65,14 @@ export default defineSchema({
   transactions: defineTable({ userId: v.id("users"), type: v.union(v.literal("income"), v.literal("expense")), amount: v.number(), category: v.string(), transaction_date: v.string() }).index("by_user", ["userId"]),
   habits: defineTable({ userId: v.id("users"), name: v.string(), color: v.string(), icon: v.string(), logs: v.array(v.object({ date: v.string(), done: v.boolean() })), streak: v.number(), longest_streak: v.number() }).index("by_user", ["userId"]),
 }, { schemaValidation: false });`,
+};
+
+const PROJECT_OPTIONS = {
+  title: "Workspace - Studio Refine",
+  description: "All-in-one productivity workspace",
+  template: "node" as const,
+  files: FILES,
+  settings: { compile: { trigger: "save" as const } },
 };
 
 const FILE_EXPLORER: { label: string; files: { name: string; desc: string }[] }[] = [
@@ -100,30 +116,35 @@ const FILE_EXPLORER: { label: string; files: { name: string; desc: string }[] }[
 ];
 
 export default function StackBlitzView() {
+  const embedRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [embedLoaded, setEmbedLoaded] = useState(false);
+
   const handleOpenInTab = useCallback(async () => {
-    await sdk.openProject(
-      {
-        title: "Workspace - Studio Refine",
-        description: "All-in-one productivity workspace",
-        template: "node",
-        files: FILES,
-        settings: { compile: { trigger: "save" } },
-      },
-      { newWindow: true, openFile: "src/main.tsx" }
-    );
+    await sdk.openProject(PROJECT_OPTIONS, {
+      newWindow: true,
+      openFile: "src/main.tsx",
+    });
   }, []);
 
   const handleEditStyles = useCallback(async () => {
-    await sdk.openProject(
-      {
-        title: "Workspace - Studio Refine",
-        description: "All-in-one productivity workspace",
-        template: "node",
-        files: FILES,
-        settings: { compile: { trigger: "save" } },
-      },
-      { newWindow: true, openFile: "src/index.css" }
-    );
+    await sdk.openProject(PROJECT_OPTIONS, {
+      newWindow: true,
+      openFile: "src/index.css",
+    });
+  }, []);
+
+  // Embed StackBlitz editor on mount
+  useEffect(() => {
+    const el = embedRef.current;
+    if (!el) return;
+    sdk
+      .embedProject(el, PROJECT_OPTIONS, {
+        clickToLoad: true,
+        openFile: "src/main.tsx",
+      })
+      .then(() => setEmbedLoaded(true))
+      .catch(() => {});
   }, []);
 
   return (
@@ -131,10 +152,10 @@ export default function StackBlitzView() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="mx-auto max-w-4xl space-y-8"
+      className="mx-auto max-w-6xl space-y-6"
     >
       {/* Header */}
-      <div className="space-y-2">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
             <Code2 size={18} />
@@ -142,66 +163,137 @@ export default function StackBlitzView() {
           <div>
             <h1 className="text-lg font-semibold">Code Editor</h1>
             <p className="text-sm text-muted-foreground">
-              Edit project source code directly via StackBlitz
+              Embedded StackBlitz editor — edit code live
             </p>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleEditStyles}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
+          >
+            <Terminal size={13} />
+            Edit CSS
+          </button>
+          <button
+            onClick={handleOpenInTab}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:bg-emerald-600"
+          >
+            <ExternalLink size={13} />
+            Open Full
+          </button>
+        </div>
       </div>
 
-      {/* Main card */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        {/* Top bar */}
-        <div className="flex items-center gap-3 border-b border-border bg-muted/30 px-5 py-3">
-          <div className="flex items-center gap-1.5">
-            <div className="h-2.5 w-2.5 rounded-full bg-red-400" />
-            <div className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
-            <div className="h-2.5 w-2.5 rounded-full bg-green-400" />
+      {/* Embedded StackBlitz Editor */}
+      {expanded && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40"
+          onClick={() => setExpanded(false)}
+        />
+      )}
+      <div
+        className={`overflow-hidden rounded-xl border border-border bg-card transition-all ${
+          expanded
+            ? "fixed inset-4 z-50 flex flex-col"
+            : ""
+        }`}
+      >
+        {/* Editor toolbar */}
+        <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/30 px-4 py-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <div className="h-2.5 w-2.5 rounded-full bg-red-400" />
+              <div className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+              <div className="h-2.5 w-2.5 rounded-full bg-green-400" />
+            </div>
+            <span className="text-[11px] font-medium text-muted-foreground/60">
+              StackBlitz WebContainer
+            </span>
           </div>
-          <span className="text-xs font-medium text-muted-foreground/60">
-            ~/workspace/src
-          </span>
+          <button
+            onClick={() => setExpanded((p) => !p)}
+            className="rounded p-1 text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+            title={expanded ? "Minimize" : "Maximize"}
+          >
+            {expanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+          </button>
         </div>
 
-        <div className="p-6">
-          {/* File explorer preview */}
-          <div className="mb-6 space-y-4">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <FolderOpen size={13} />
-              Project Files
+        {/* Editor iframe container */}
+        <div
+          ref={embedRef}
+          className={`w-full ${expanded ? "flex-1 min-h-0" : "h-[520px]"}`}
+        >
+          {!embedLoaded && (
+            <div className="flex h-full flex-col items-center justify-center gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-500" />
+              <p className="text-xs text-muted-foreground">
+                Loading StackBlitz editor...
+              </p>
+              <button
+                onClick={handleOpenInTab}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
+              >
+                <ExternalLink size={12} />
+                Open in new tab instead
+              </button>
             </div>
+          )}
+        </div>
+      </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {FILE_EXPLORER.map((group) => (
-                <div
-                  key={group.label}
-                  className="rounded-lg border border-border bg-background p-3"
-                >
-                  <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                    <FileCode size={12} />
-                    {group.label}
-                  </div>
-                  <div className="space-y-1">
-                    {group.files.map((file) => (
-                      <div
-                        key={file.name}
-                        className="flex items-center justify-between rounded px-2 py-1 text-xs transition-colors hover:bg-accent"
-                      >
-                        <span className="font-mono text-foreground/80">
-                          {file.name}
-                        </span>
-                        <span className="text-muted-foreground/60">
-                          {file.desc}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+      {/* Bottom: file explorer + info */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* File list */}
+        <div className="rounded-lg border border-border bg-card p-4 md:col-span-2">
+          <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <FolderOpen size={13} />
+            Project Files
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {FILE_EXPLORER.map((group) => (
+              <div key={group.label} className="rounded-md border border-border bg-background p-2.5">
+                <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                  <FileCode size={11} />
+                  {group.label}
                 </div>
-              ))}
+                <div className="space-y-0.5">
+                  {group.files.map((file) => (
+                    <div
+                      key={file.name}
+                      className="flex items-center justify-between rounded px-1.5 py-0.5 text-[11px] transition-colors hover:bg-accent"
+                    >
+                      <span className="font-mono text-foreground/70">{file.name}</span>
+                      <span className="text-muted-foreground/50">{file.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Info */}
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-start gap-2.5">
+            <GitBranch size={14} className="mt-0.5 shrink-0 text-muted-foreground" />
+            <div className="text-xs leading-relaxed text-muted-foreground">
+              <p className="mb-1 font-medium text-foreground">How it works</p>
+              <p>
+                StackBlitz runs your project in an isolated WebContainer.
+                Edit files, run the dev server, and preview changes — all
+                within your browser.
+              </p>
+              <p className="mt-2">
+                <span className="font-medium text-foreground">Tip:</span> Click
+                the <Maximize2 size={11} className="inline" /> icon to expand
+                the editor to full screen.
+              </p>
             </div>
           </div>
-
           {/* Tech stack */}
-          <div className="mb-6 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border pt-3">
             {[
               { label: "React", icon: "\u269B\uFE0F" },
               { label: "TypeScript", icon: "\uD83D\uDCD8" },
@@ -212,45 +304,11 @@ export default function StackBlitzView() {
             ].map((tech) => (
               <span
                 key={tech.label}
-                className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground"
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
               >
                 {tech.icon} {tech.label}
               </span>
             ))}
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              onClick={handleOpenInTab}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-emerald-600 active:scale-[0.98]"
-            >
-              <Sparkles size={16} />
-              Open in StackBlitz
-              <ExternalLink size={14} className="opacity-70" />
-            </button>
-            <button
-              onClick={handleEditStyles}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-5 py-3 text-sm font-medium transition-colors hover:bg-accent"
-            >
-              <Terminal size={16} />
-              Edit Styles
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex items-start gap-3">
-          <GitBranch size={15} className="mt-0.5 shrink-0 text-muted-foreground" />
-          <div className="text-xs leading-relaxed text-muted-foreground">
-            <p className="font-medium text-foreground">How it works</p>
-            <p className="mt-1">
-              StackBlitz creates an isolated WebContainer with your project's source code.
-              Edit files, run dev server, and see changes in real-time. Changes are temporary
-              — download or fork to save your work.
-            </p>
           </div>
         </div>
       </div>
