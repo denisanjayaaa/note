@@ -52,8 +52,8 @@ function DashboardShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { notes, addNote, togglePinNote, deleteNote } = useNotes();
-  const { tasks, addTask, updateTaskStatus, deleteTask, addSubtask, toggleSubtask, updateTags } = useTasks();
+  const { notes, addNote, togglePinNote, deleteNote, updateNote } = useNotes();
+  const { tasks, addTask, updateTaskStatus, deleteTask, addSubtask, toggleSubtask, updateTags, updateTask } = useTasks();
   const {
     transactions,
     totalIncome,
@@ -61,8 +61,9 @@ function DashboardShell() {
     balance,
     addTransaction,
     deleteTransaction,
+    updateTransaction,
   } = useTransactions();
-  const { habits, addHabit, logHabit, removeHabit } = useHabits();
+  const { habits, addHabit, logHabit, removeHabit, updateHabit } = useHabits();
 
   const handleNavigate = useCallback((tab: ActiveTab) => {
     setActiveTab(tab);
@@ -70,6 +71,10 @@ function DashboardShell() {
   }, []);
 
   const [activeNote, setActiveNote] = useState<Note | null>(null);
+
+  const handleNoteSelect = useCallback((note: Note) => {
+    setActiveNote(note);
+  }, []);
 
   // Keyboard shortcut for search
   const handleKeyDown = useCallback(
@@ -225,6 +230,8 @@ function DashboardShell() {
                   addNote={addNote}
                   togglePinNote={togglePinNote}
                   deleteNote={deleteNote}
+                  updateNote={updateNote}
+                  onNoteSelect={handleNoteSelect}
                 />
               )}
               {activeTab === "tasks" && (
@@ -237,6 +244,7 @@ function DashboardShell() {
                   addSubtask={addSubtask}
                   toggleSubtask={toggleSubtask}
                   updateTags={updateTags}
+                  updateTask={updateTask}
                 />
               )}
               {activeTab === "calendar" && (
@@ -251,6 +259,7 @@ function DashboardShell() {
                   balance={balance}
                   addTransaction={addTransaction}
                   deleteTransaction={deleteTransaction}
+                  updateTransaction={updateTransaction}
                 />
               )}
               {activeTab === "csv" && <CsvEditor key="csv" />}
@@ -261,6 +270,7 @@ function DashboardShell() {
                   addHabit={addHabit}
                   logHabit={logHabit}
                   removeHabit={removeHabit}
+                  updateHabit={updateHabit}
                 />
               )}
               {activeTab === "profile" && (

@@ -241,7 +241,16 @@ export function useHabits() {
     setHabits((p) => p.filter((h) => h.id !== id));
   }, []);
 
-  return { habits, addHabit, logHabit, removeHabit };
+  const updateHabit = useCallback(
+    async (id: string, data: { name?: string; color?: string; icon?: string }) => {
+      setHabits((p) =>
+        p.map((h) => (h.id === id ? { ...h, ...data } : h))
+      );
+    },
+    []
+  );
+
+  return { habits, addHabit, logHabit, removeHabit, updateHabit };
 }
 
 // ─── Notes Hook ───
@@ -305,7 +314,13 @@ export function useNotes() {
     setNotes((p) => p.filter((n) => n.id !== id));
   }, []);
 
-  return { notes, loading, addNote, togglePinNote, deleteNote };
+  const updateNote = useCallback(async (id: string, title: string, content: string) => {
+    setNotes((p) =>
+      p.map((n) => (n.id === id ? { ...n, title, content } : n))
+    );
+  }, []);
+
+  return { notes, loading, addNote, togglePinNote, deleteNote, updateNote };
 }
 
 // ─── Tasks Hook ───
@@ -435,7 +450,19 @@ export function useTasks() {
     setTasks((p) => p.filter((t) => t.id !== id));
   }, []);
 
-  return { tasks, loading, addTask, updateTaskStatus, deleteTask, addSubtask, toggleSubtask, updateTags };
+  const updateTask = useCallback(
+    async (
+      id: string,
+      data: { title?: string; priority?: Task["priority"]; due_date?: string | null; description?: string }
+    ) => {
+      setTasks((p) =>
+        p.map((t) => (t.id === id ? { ...t, ...data } : t))
+      );
+    },
+    []
+  );
+
+  return { tasks, loading, addTask, updateTaskStatus, deleteTask, addSubtask, toggleSubtask, updateTags, updateTask };
 }
 
 // ─── Transactions Hook ───
@@ -529,6 +556,15 @@ export function useTransactions() {
     .filter((t) => t.type === "expense")
     .reduce((a, t) => a + Number(t.amount), 0);
 
+  const updateTransaction = useCallback(
+    async (id: string, data: { type?: "income" | "expense"; amount?: number; category?: string; description?: string; transaction_date?: string }) => {
+      setTx((p) =>
+        p.map((t) => (t.id === id ? { ...t, ...data } : t))
+      );
+    },
+    []
+  );
+
   return {
     transactions: tx,
     loading,
@@ -537,6 +573,7 @@ export function useTransactions() {
     balance: totalIncome - totalExpense,
     addTransaction,
     deleteTransaction,
+    updateTransaction,
   };
 }
 

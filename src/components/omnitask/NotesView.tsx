@@ -5,6 +5,9 @@ import {
   Pin,
   Trash2,
   GripVertical,
+  Edit3,
+  Check,
+  X,
 } from "lucide-react";
 import {
   DragDropContext,
@@ -21,6 +24,8 @@ interface NotesViewProps {
   addNote: (title: string, content: string) => Promise<void>;
   togglePinNote: (id: string, cur: boolean) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
+  updateNote?: (id: string, title: string, content: string) => Promise<void>;
+  onNoteSelect?: (note: Note) => void;
 }
 
 export function NotesView({
@@ -28,10 +33,15 @@ export function NotesView({
   addNote,
   togglePinNote,
   deleteNote,
+  updateNote,
+  onNoteSelect,
 }: NotesViewProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,11 +52,30 @@ export function NotesView({
     setShowForm(false);
   };
 
+  const startEditing = (note: Note) => {
+    setEditingId(note.id);
+    setEditTitle(note.title);
+    setEditContent(note.content);
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editTitle.trim()) return;
+    await updateNote?.(editingId, editTitle.trim(), editContent.trim());
+    setEditingId(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") cancelEdit();
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) saveEdit();
+  };
+
   const onDragEnd = useCallback(
     (result: DropResult) => {
       if (!result.destination) return;
-      // In a mock scenario, we'll just reorder based on the result
-      // This is a simplified version
     },
     []
   );
@@ -135,10 +164,10 @@ export function NotesView({
                       ref={p.innerRef}
                       {...p.draggableProps}
                       className={`group rounded-lg border border-border bg-card transition-all ${
-                        sn.isDragging
-                          ? "z-50 shadow-lg"
-                          : ""
-                      } ${note.is_pinned ? "border-l-2 border-l-amber-400" : ""}`}
+                        sn.isDragging ? "z-50 shadow-lg" : ""
+                      } ${note.is_pinned ? "border-l-2 border-l-amber-400" : ""} ${
+                        editingId === note.id ? "ring-1 ring-ring" : ""
+                      }`}
                     >
                       <div className="flex items-start gap-2 p-4">
                         <div
@@ -148,33 +177,95 @@ export function NotesView({
                           <GripVertical size={14} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="text-sm font-medium">{note.title}</h3>
-                            <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                              <button
-                                onClick={() =>
-                                  togglePinNote(note.id, note.is_pinned)
-                                }
-                                className={`rounded p-1 transition-colors hover:bg-accent ${
-                                  note.is_pinned
-                                    ? "text-amber-500"
-                                    : "text-muted-foreground/50"
-                                }`}
-                              >
-                                <Pin size={13} />
-                              </button>
-                              <button
-                                onClick={() => deleteNote(note.id)}
-                                className="rounded p-1 text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive"
-                              >
-                                <Trash2 size={13} />
-                              </button>
+                          {editingId === note.id ? (
+                            <div
+                              className="space-y-3"
+                              onKeyDown={handleEditKeyDown}
+                            >
+                              <Input
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                placeholder="Note title..."
+                                className="border-0 bg-transparent px-0 text-base font-medium shadow-none focus-visible:ring-0"
+                                autoFocus
+                              />
+                              <textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                placeholder="Write something..."
+                                rows={4}
+                                className="w-full resize-none border-0 bg-transparent px-0 text-sm text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none"
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={saveEdit}
+                                  disabled={!editTitle.trim()}
+                                  className="gap-1"
+                                >
+                                  <Check size={13} /> Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={cancelEdit}
+                                  className="gap-1"
+                                >
+                                  <X size={13} /> Cancel
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                          {note.content && (
-                            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                              {note.content}
-                            </p>
+                          ) : (
+                            <>
+                              <div className="flex items-start justify-between gap-2">
+                                <h3
+                                  className="text-sm font-medium cursor-pointer hover:text-foreground/80"
+                                  onClick={() => {
+                                    startEditing(note);
+                                    onNoteSelect?.(note);
+                                  }}
+                                >
+                                  {note.title}
+                                </h3>
+                                <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                                  <button
+                                    onClick={() => {
+                                      startEditing(note);
+                                      onNoteSelect?.(note);
+                                    }}
+                                    className="rounded p-1 text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground"
+                                    title="Edit note"
+                                  >
+                                    <Edit3 size={13} />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      togglePinNote(note.id, note.is_pinned)
+                                    }
+                                    className={`rounded p-1 transition-colors hover:bg-accent ${
+                                      note.is_pinned
+                                        ? "text-amber-500"
+                                        : "text-muted-foreground/50"
+                                    }`}
+                                    title={note.is_pinned ? "Unpin" : "Pin"}
+                                  >
+                                    <Pin size={13} />
+                                  </button>
+                                  <button
+                                    onClick={() => deleteNote(note.id)}
+                                    className="rounded p-1 text-muted-foreground/50 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                    title="Delete note"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                              {note.content && (
+                                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                                  {note.content}
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

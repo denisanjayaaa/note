@@ -6,6 +6,9 @@ import {
   GripVertical,
   MoreHorizontal,
   CalendarDays,
+  Edit3,
+  Check,
+  X,
 } from "lucide-react";
 import {
   DragDropContext,
@@ -29,6 +32,7 @@ interface TasksViewProps {
   addSubtask?: (taskId: string, title: string) => Promise<void>;
   toggleSubtask?: (taskId: string, subtaskId: string) => Promise<void>;
   updateTags?: (taskId: string, tags: string[]) => Promise<void>;
+  updateTask?: (id: string, data: { title?: string; priority?: Task["priority"]; due_date?: string | null; description?: string }) => Promise<void>;
 }
 
 const PRIORITY_LABELS = {
@@ -84,6 +88,7 @@ function TaskCard({
   onAddSubtask,
   onUpdateTags,
   onRemoveTag,
+  onEdit,
 }: {
   task: Task;
   index: number;
@@ -92,6 +97,7 @@ function TaskCard({
   onAddSubtask?: (taskId: string, title: string) => void;
   onUpdateTags?: (taskId: string, tags: string[]) => void;
   onRemoveTag?: (taskId: string, tag: string) => void;
+  onEdit?: (task: Task) => void;
 }) {
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showTags, setShowTags] = useState(false);
@@ -227,6 +233,16 @@ function TaskCard({
               </div>
             </div>
             <div className="flex shrink-0 gap-0.5">
+              {/* Edit button */}
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(task)}
+                  className="mt-0.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                  title="Edit task"
+                >
+                  <Edit3 size={13} />
+                </button>
+              )}
               {/* Tag button */}
               {onUpdateTags && (
                 <div className="relative">
@@ -282,6 +298,103 @@ function TaskCard({
   );
 }
 
+// ─── Edit Task Modal ───
+
+function EditTaskModal({
+  task,
+  onSave,
+  onClose,
+}: {
+  task: Task;
+  onSave: (id: string, data: { title: string; priority: Task["priority"]; due_date: string | null; description: string }) => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(task.title);
+  const [priority, setPriority] = useState(task.priority);
+  const [dueDate, setDueDate] = useState(task.due_date || "");
+  const [description, setDescription] = useState(task.description);
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    onSave(task.id, { title: title.trim(), priority, due_date: dueDate || null, description: description.trim() });
+    onClose();
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md rounded-xl border border-border bg-card shadow-2xl"
+        >
+          <form onSubmit={handleSave} className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Edit Task</h3>
+              <button type="button" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-accent">
+                <X size={15} />
+              </button>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Title</label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" autoFocus />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Task description..."
+                rows={2}
+                className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Priority</label>
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as Task["priority"])}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-muted-foreground">Due Date</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" size="sm" disabled={!title.trim()} className="gap-1">
+                <Check size={13} /> Save
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={onClose} className="gap-1">
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    </>
+  );
+}
+
+// ─── Main TasksView ───
+
 export function TasksView({
   tasks,
   addTask,
@@ -290,11 +403,13 @@ export function TasksView({
   addSubtask,
   toggleSubtask,
   updateTags,
+  updateTask,
 }: TasksViewProps) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<Task["priority"]>("medium");
   const [dueDate, setDueDate] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -334,6 +449,13 @@ export function TasksView({
       );
     },
     [tasks, updateTags]
+  );
+
+  const handleEditSave = useCallback(
+    (id: string, data: { title: string; priority: Task["priority"]; due_date: string | null; description: string }) => {
+      updateTask?.(id, data);
+    },
+    [updateTask]
   );
 
   const columns = [
@@ -472,6 +594,7 @@ export function TasksView({
                           onAddSubtask={addSubtask}
                           onUpdateTags={handleUpdateTags}
                           onRemoveTag={handleRemoveTag}
+                          onEdit={updateTask ? setEditingTask : undefined}
                         />
                       ))}
                       {p.placeholder}
@@ -494,6 +617,15 @@ export function TasksView({
           })}
         </div>
       </DragDropContext>
+
+      {/* Edit modal */}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onSave={handleEditSave}
+          onClose={() => setEditingTask(null)}
+        />
+      )}
     </motion.div>
   );
 }

@@ -9,6 +9,9 @@ import {
   Circle,
   Target,
   BarChart3,
+  Edit3,
+  Check,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +29,7 @@ interface HabitTrackerProps {
   addHabit: (name: string, color: string, icon: string) => Promise<void>;
   logHabit: (id: string, date: string, done: boolean) => Promise<void>;
   removeHabit: (id: string) => Promise<void>;
+  updateHabit?: (id: string, data: { name?: string; color?: string; icon?: string }) => Promise<void>;
 }
 
 function getDateKey(d: Date): string {
@@ -46,12 +50,113 @@ function getLast30Days(): string[] {
   return days;
 }
 
-export function HabitTracker({ habits, addHabit, logHabit, removeHabit }: HabitTrackerProps) {
+// ─── Edit Habit Modal ───
+
+function EditHabitModal({
+  habit,
+  onSave,
+  onClose,
+}: {
+  habit: Habit;
+  onSave: (id: string, data: { name: string; color: string; icon: string }) => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState(habit.name);
+  const [color, setColor] = useState(habit.color);
+  const [icon, setIcon] = useState(habit.icon);
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSave(habit.id, { name: name.trim(), color, icon });
+    onClose();
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-sm rounded-xl border border-border bg-card shadow-2xl"
+        >
+          <form onSubmit={handleSave} className="p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Edit Habit</h3>
+              <button type="button" onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-accent">
+                <X size={15} />
+              </button>
+            </div>
+
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Habit name..."
+              autoFocus
+            />
+
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Icon</p>
+              <div className="flex flex-wrap gap-2">
+                {HABIT_ICONS.map((ic) => (
+                  <button
+                    key={ic}
+                    type="button"
+                    onClick={() => setIcon(ic)}
+                    className={`flex h-8 w-8 items-center justify-center rounded-md text-base transition-all ${
+                      icon === ic
+                        ? "bg-accent ring-1 ring-ring scale-110"
+                        : "bg-muted hover:bg-accent/50"
+                    }`}
+                  >
+                    {ic}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Color</p>
+              <div className="flex gap-2">
+                {HABIT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className={`h-7 w-7 rounded-full transition-all ${
+                      color === c ? "ring-2 ring-ring ring-offset-2 scale-110" : ""
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" size="sm" disabled={!name.trim()} className="gap-1">
+                <Check size={13} /> Save
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={onClose} className="gap-1">
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    </>
+  );
+}
+
+// ─── Main HabitTracker ───
+
+export function HabitTracker({ habits, addHabit, logHabit, removeHabit, updateHabit }: HabitTrackerProps) {
   const [showForm, setShowForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(HABIT_COLORS[3]);
   const [newIcon, setNewIcon] = useState(HABIT_ICONS[1]);
   const [selectedHabit, setSelectedHabit] = useState<string | null>(null);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
 
   const todayKey = getTodayKey();
   const last30Days = useMemo(() => getLast30Days(), []);
@@ -64,6 +169,10 @@ export function HabitTracker({ habits, addHabit, logHabit, removeHabit }: HabitT
     setNewColor(HABIT_COLORS[3]);
     setNewIcon(HABIT_ICONS[1]);
     setShowForm(false);
+  };
+
+  const handleEditSave = (id: string, data: { name: string; color: string; icon: string }) => {
+    updateHabit?.(id, data);
   };
 
   const isDoneToday = (habit: Habit) => {
@@ -79,7 +188,6 @@ export function HabitTracker({ habits, addHabit, logHabit, removeHabit }: HabitT
   const today = new Date();
   const currentMonth = today.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-  // Get days of current month
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
   const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   const startPad = firstDay.getDay();
@@ -95,9 +203,6 @@ export function HabitTracker({ habits, addHabit, logHabit, removeHabit }: HabitT
   }
 
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-  // Find selected habit for detail view
-  const selected = habits.find((h) => h.id === selectedHabit);
 
   const allTimeStats = useMemo(() => {
     let totalLogs = 0;
@@ -278,12 +383,23 @@ export function HabitTracker({ habits, addHabit, logHabit, removeHabit }: HabitT
                     <button
                       onClick={() => setSelectedHabit(selectedHabit === habit.id ? null : habit.id)}
                       className="rounded-md p-1.5 text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent"
+                      title="View details"
                     >
                       <BarChart3 size={14} />
                     </button>
+                    {updateHabit && (
+                      <button
+                        onClick={() => setEditingHabit(habit)}
+                        className="rounded-md p-1.5 text-muted-foreground/40 hover:text-foreground hover:bg-accent"
+                        title="Edit habit"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                    )}
                     <button
                       onClick={() => removeHabit(habit.id)}
                       className="rounded-md p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
+                      title="Delete habit"
                     >
                       <Trash2 size={13} />
                     </button>
@@ -335,7 +451,6 @@ export function HabitTracker({ habits, addHabit, logHabit, removeHabit }: HabitT
                         <span className="text-xs text-muted-foreground/60">{currentMonth}</span>
                       </div>
 
-                      {/* Month heatmap grid */}
                       <div className="overflow-x-auto">
                         <table className="w-full border-collapse">
                           <thead>
@@ -361,9 +476,7 @@ export function HabitTracker({ habits, addHabit, logHabit, removeHabit }: HabitT
                                       <button
                                         onClick={() => logHabit(habit.id, dateKey, !log?.done)}
                                         className={`flex h-8 w-8 items-center justify-center rounded-md text-xs transition-all ${
-                                          isToday
-                                            ? "ring-1 ring-ring"
-                                            : ""
+                                          isToday ? "ring-1 ring-ring" : ""
                                         } ${
                                           log?.done
                                             ? "bg-emerald-400 text-white dark:bg-emerald-500"
@@ -383,7 +496,6 @@ export function HabitTracker({ habits, addHabit, logHabit, removeHabit }: HabitT
                         </table>
                       </div>
 
-                      {/* Detailed stats */}
                       <div className="mt-4 grid grid-cols-3 gap-3 rounded-lg bg-muted/50 p-3">
                         <div className="text-center">
                           <p className="text-lg font-bold" style={{ color: habit.color }}>
@@ -420,6 +532,15 @@ export function HabitTracker({ habits, addHabit, logHabit, removeHabit }: HabitT
             No habits yet. Start tracking your daily routines!
           </p>
         </div>
+      )}
+
+      {/* Edit modal */}
+      {editingHabit && (
+        <EditHabitModal
+          habit={editingHabit}
+          onSave={handleEditSave}
+          onClose={() => setEditingHabit(null)}
+        />
       )}
     </motion.div>
   );
