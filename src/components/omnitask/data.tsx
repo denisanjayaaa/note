@@ -291,13 +291,13 @@ export function useNotes() {
   ]);
   const [loading, setLoading] = useState(false);
 
-  const addNote = useCallback(async (title: string, content: string) => {
+  const addNote = useCallback(async (title: string, content: string, folder_path?: string) => {
     const newNote: Note = {
       id: Date.now().toString(),
       title,
       content,
       is_pinned: false,
-      folder_path: "/",
+      folder_path: folder_path || "/",
       tags: [],
       created_at: "",
       updated_at: "",
@@ -321,7 +321,35 @@ export function useNotes() {
     );
   }, []);
 
-  return { notes, loading, addNote, togglePinNote, deleteNote, updateNote };
+  // ─── Folder Management ───
+  const [folders, setFolders] = useState<string[]>(["/", "Work", "Personal", "Ideas"]);
+
+  const addFolder = useCallback(async (name: string) => {
+    setFolders((p) => (p.includes(name) ? p : [...p, name]));
+  }, []);
+
+  const renameFolder = useCallback(async (oldName: string, newName: string) => {
+    setFolders((p) => p.map((f) => (f === oldName ? newName : f)));
+    setNotes((p) =>
+      p.map((n) => (n.folder_path === oldName ? { ...n, folder_path: newName } : n))
+    );
+  }, []);
+
+  const deleteFolder = useCallback(async (name: string) => {
+    if (name === "/") return; // Can't delete root
+    setFolders((p) => p.filter((f) => f !== name));
+    setNotes((p) =>
+      p.map((n) => (n.folder_path === name ? { ...n, folder_path: "/" } : n))
+    );
+  }, []);
+
+  const moveNoteToFolder = useCallback(async (noteId: string, folder: string) => {
+    setNotes((p) =>
+      p.map((n) => (n.id === noteId ? { ...n, folder_path: folder } : n))
+    );
+  }, []);
+
+  return { notes, loading, folders, addNote, togglePinNote, deleteNote, updateNote, addFolder, renameFolder, deleteFolder, moveNoteToFolder };
 }
 
 // ─── Tasks Hook ───

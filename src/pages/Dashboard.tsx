@@ -52,7 +52,7 @@ function DashboardShell() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { notes, addNote, togglePinNote, deleteNote, updateNote } = useNotes();
+  const { notes, folders, addNote, togglePinNote, deleteNote, updateNote, addFolder, renameFolder, deleteFolder, moveNoteToFolder } = useNotes();
   const { tasks, addTask, updateTaskStatus, deleteTask, addSubtask, toggleSubtask, updateTags, updateTask } = useTasks();
   const {
     transactions,
@@ -227,11 +227,16 @@ function DashboardShell() {
                 <NotesView
                   key="notes"
                   notes={notes}
+                  folders={folders}
                   addNote={addNote}
                   togglePinNote={togglePinNote}
                   deleteNote={deleteNote}
                   updateNote={updateNote}
                   onNoteSelect={handleNoteSelect}
+                  addFolder={addFolder}
+                  renameFolder={renameFolder}
+                  deleteFolder={deleteFolder}
+                  moveNoteToFolder={moveNoteToFolder}
                 />
               )}
               {activeTab === "tasks" && (
