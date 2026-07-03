@@ -32,12 +32,67 @@ const schema = defineSchema(
       role: v.optional(roleValidator), // role of the user. do not remove
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
-    // add other tables here
+    // Notes
+    notes: defineTable({
+      userId: v.id("users"),
+      title: v.string(),
+      content: v.string(),
+      is_pinned: v.boolean(),
+      tags: v.array(v.string()),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_pinned", ["userId", "is_pinned"]),
 
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    // Tasks
+    tasks: defineTable({
+      userId: v.id("users"),
+      title: v.string(),
+      description: v.string(),
+      status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done")),
+      priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+      due_date: v.optional(v.string()),
+      tags: v.array(v.string()),
+      subtasks: v.array(
+        v.object({
+          id: v.string(),
+          title: v.string(),
+          done: v.boolean(),
+        })
+      ),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_status", ["userId", "status"]),
+
+    // Transactions
+    transactions: defineTable({
+      userId: v.id("users"),
+      type: v.union(v.literal("income"), v.literal("expense")),
+      amount: v.number(),
+      category: v.string(),
+      description: v.string(),
+      transaction_date: v.string(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_date", ["userId", "transaction_date"]),
+
+    // Habits
+    habits: defineTable({
+      userId: v.id("users"),
+      name: v.string(),
+      color: v.string(),
+      icon: v.string(),
+      logs: v.array(
+        v.object({
+          date: v.string(),
+          done: v.boolean(),
+          note: v.optional(v.string()),
+        })
+      ),
+      streak: v.number(),
+      longest_streak: v.number(),
+    })
+      .index("by_user", ["userId"]),
+
   },
   {
     schemaValidation: false,

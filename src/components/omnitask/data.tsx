@@ -11,7 +11,8 @@ export type ActiveTab =
   | "calendar"
   | "finance"
   | "csv"
-  | "profile";
+  | "profile"
+  | "habits";
 
 export interface Note {
   id: string;
@@ -24,6 +25,12 @@ export interface Note {
   updated_at: string;
 }
 
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -34,6 +41,19 @@ export interface Task {
   parent_id: string | null;
   created_at: string;
   updated_at: string;
+  tags: string[];
+  subtasks: Subtask[];
+}
+
+export interface Habit {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  logs: { date: string; done: boolean; note?: string }[];
+  streak: number;
+  longest_streak: number;
+  created_at: string;
 }
 
 export interface Transaction {
@@ -109,6 +129,119 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 export function useTheme() {
   return useContext(ThemeContext);
+}
+
+// ─── Habits Hook ───
+
+export function useHabits() {
+  const [habits, setHabits] = useState<Habit[]>([
+    {
+      id: "h1",
+      name: "Morning Exercise",
+      color: "#22c55e",
+      icon: "💪",
+      logs: (() => {
+        const logs = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          logs.push({ date: d.toISOString().split("T")[0], done: i < 5 });
+        }
+        return logs;
+      })(),
+      streak: 5,
+      longest_streak: 12,
+      created_at: "",
+    },
+    {
+      id: "h2",
+      name: "Read 30 mins",
+      color: "#3b82f6",
+      icon: "📚",
+      logs: (() => {
+        const logs = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          logs.push({ date: d.toISOString().split("T")[0], done: i < 3 });
+        }
+        return logs;
+      })(),
+      streak: 3,
+      longest_streak: 8,
+      created_at: "",
+    },
+    {
+      id: "h3",
+      name: "Meditate",
+      color: "#8b5cf6",
+      icon: "🧘",
+      logs: (() => {
+        const logs = [];
+        for (let i = 0; i < 7; i++) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          logs.push({ date: d.toISOString().split("T")[0], done: i < 4 });
+        }
+        return logs;
+      })(),
+      streak: 4,
+      longest_streak: 6,
+      created_at: "",
+    },
+  ]);
+
+  const addHabit = useCallback(async (name: string, color: string, icon: string) => {
+    const h: Habit = {
+      id: "h-" + Date.now(),
+      name,
+      color,
+      icon,
+      logs: [],
+      streak: 0,
+      longest_streak: 0,
+      created_at: "",
+    };
+    setHabits((p) => [h, ...p]);
+  }, []);
+
+  const logHabit = useCallback(async (id: string, date: string, done: boolean) => {
+    setHabits((prev) =>
+      prev.map((h) => {
+        if (h.id !== id) return h;
+        const filteredLogs = h.logs.filter((l) => l.date !== date);
+        const logs = [...filteredLogs, { date, done }];
+        // Calculate streak
+        const sorted = [...logs].filter((l) => l.done).sort((a, b) => b.date.localeCompare(a.date));
+        let streak = 0;
+        if (sorted.length > 0) {
+          const today = new Date().toISOString().split("T")[0];
+          const mostRecent = sorted[0].date;
+          const mostRecentDate = new Date(mostRecent + "T00:00:00");
+          const todayDate = new Date(today + "T00:00:00");
+          const diffMs = todayDate.getTime() - mostRecentDate.getTime();
+          const diffDays = Math.round(diffMs / 86400000);
+          if (diffDays <= 1 || sorted[0].date === today) {
+            streak = 1;
+            for (let i = 1; i < sorted.length; i++) {
+              const prev = new Date(sorted[i - 1].date + "T00:00:00");
+              const curr = new Date(sorted[i].date + "T00:00:00");
+              const diff = Math.round((prev.getTime() - curr.getTime()) / 86400000);
+              if (diff === 1) streak++;
+              else break;
+            }
+          }
+        }
+        return { ...h, logs, streak, longest_streak: Math.max(streak, h.longest_streak) };
+      })
+    );
+  }, []);
+
+  const removeHabit = useCallback(async (id: string) => {
+    setHabits((p) => p.filter((h) => h.id !== id));
+  }, []);
+
+  return { habits, addHabit, logHabit, removeHabit };
 }
 
 // ─── Notes Hook ───
@@ -187,6 +320,8 @@ export function useTasks() {
       priority: "high",
       due_date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
       parent_id: null,
+      tags: [],
+      subtasks: [],
       created_at: "",
       updated_at: "",
     },
@@ -198,6 +333,8 @@ export function useTasks() {
       priority: "medium",
       due_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
       parent_id: null,
+      tags: [],
+      subtasks: [],
       created_at: "",
       updated_at: "",
     },
@@ -209,6 +346,8 @@ export function useTasks() {
       priority: "low",
       due_date: null,
       parent_id: null,
+      tags: [],
+      subtasks: [],
       created_at: "",
       updated_at: "",
     },
@@ -220,6 +359,8 @@ export function useTasks() {
       priority: "high",
       due_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
       parent_id: null,
+      tags: [],
+      subtasks: [],
       created_at: "",
       updated_at: "",
     },
@@ -236,17 +377,50 @@ export function useTasks() {
         id: Date.now().toString(),
         title,
         description: "",
-        status: "todo",
-        priority,
-        due_date: due_date || null,
-        parent_id: null,
-        created_at: "",
-        updated_at: "",
-      };
-      setTasks((p) => [t, ...p]);
-    },
-    []
-  );
+      status: "todo",
+      priority,
+      due_date: due_date || null,
+      parent_id: null,
+      tags: [],
+      subtasks: [],
+      created_at: "",
+      updated_at: "",
+    };
+    setTasks((p) => [t, ...p]);
+  },
+  []
+);
+
+  const addSubtask = useCallback(async (taskId: string, title: string) => {
+    setTasks((p) =>
+      p.map((t) =>
+        t.id === taskId
+          ? { ...t, subtasks: [...t.subtasks, { id: Date.now().toString(), title, done: false }] }
+          : t
+      )
+    );
+  }, []);
+
+  const toggleSubtask = useCallback(async (taskId: string, subtaskId: string) => {
+    setTasks((p) =>
+      p.map((t) =>
+        t.id === taskId
+          ? {
+              ...t,
+              subtasks: t.subtasks.map((st) =>
+                st.id === subtaskId ? { ...st, done: !st.done } : st
+              ),
+            }
+          : t
+      )
+    );
+  }, []);
+
+  const updateTags = useCallback(async (taskId: string, tags: string[]) => {
+    setTasks((p) =>
+      p.map((t) => (t.id === taskId ? { ...t, tags } : t))
+    );
+  }, []);
 
   const updateTaskStatus = useCallback(
     async (id: string, status: Task["status"]) => {
@@ -261,7 +435,7 @@ export function useTasks() {
     setTasks((p) => p.filter((t) => t.id !== id));
   }, []);
 
-  return { tasks, loading, addTask, updateTaskStatus, deleteTask };
+  return { tasks, loading, addTask, updateTaskStatus, deleteTask, addSubtask, toggleSubtask, updateTags };
 }
 
 // ─── Transactions Hook ───

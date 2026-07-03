@@ -11,6 +11,7 @@ import {
   Search,
   Menu,
   X,
+  Target,
 } from "lucide-react";
 import { Navigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
@@ -22,8 +23,16 @@ import { CalendarView } from "@/components/omnitask/CalendarView";
 import { FinanceView } from "@/components/omnitask/FinanceView";
 import { CsvEditor } from "@/components/omnitask/CsvEditor";
 import { ProfileView } from "@/components/omnitask/ProfileView";
-import { ThemeProvider, useNotes, useTasks, useTransactions } from "@/components/omnitask/data";
-import type { ActiveTab } from "@/components/omnitask/data";
+import { HabitTracker } from "@/components/omnitask/HabitTracker";
+import { AiAssistant } from "@/components/omnitask/AiAssistant";
+import {
+  ThemeProvider,
+  useNotes,
+  useTasks,
+  useTransactions,
+  useHabits,
+} from "@/components/omnitask/data";
+import type { ActiveTab, Note } from "@/components/omnitask/data";
 import { ThemeToggle } from "@/components/omnitask/ThemeToggle";
 
 const NAV_ITEMS: { id: ActiveTab; label: string; icon: typeof LayoutDashboard }[] = [
@@ -33,6 +42,7 @@ const NAV_ITEMS: { id: ActiveTab; label: string; icon: typeof LayoutDashboard }[
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "finance", label: "Finance", icon: Wallet },
   { id: "csv", label: "CSV Editor", icon: FileSpreadsheet },
+  { id: "habits", label: "Habits", icon: Target },
   { id: "profile", label: "Profile", icon: User },
 ];
 
@@ -43,7 +53,7 @@ function DashboardShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { notes, addNote, togglePinNote, deleteNote } = useNotes();
-  const { tasks, addTask, updateTaskStatus, deleteTask } = useTasks();
+  const { tasks, addTask, updateTaskStatus, deleteTask, addSubtask, toggleSubtask, updateTags } = useTasks();
   const {
     transactions,
     totalIncome,
@@ -52,11 +62,14 @@ function DashboardShell() {
     addTransaction,
     deleteTransaction,
   } = useTransactions();
+  const { habits, addHabit, logHabit, removeHabit } = useHabits();
 
   const handleNavigate = useCallback((tab: ActiveTab) => {
     setActiveTab(tab);
     setSidebarOpen(false);
   }, []);
+
+  const [activeNote, setActiveNote] = useState<Note | null>(null);
 
   // Keyboard shortcut for search
   const handleKeyDown = useCallback(
@@ -221,6 +234,9 @@ function DashboardShell() {
                   addTask={addTask}
                   updateTaskStatus={updateTaskStatus}
                   deleteTask={deleteTask}
+                  addSubtask={addSubtask}
+                  toggleSubtask={toggleSubtask}
+                  updateTags={updateTags}
                 />
               )}
               {activeTab === "calendar" && (
@@ -238,6 +254,15 @@ function DashboardShell() {
                 />
               )}
               {activeTab === "csv" && <CsvEditor key="csv" />}
+              {activeTab === "habits" && (
+                <HabitTracker
+                  key="habits"
+                  habits={habits}
+                  addHabit={addHabit}
+                  logHabit={logHabit}
+                  removeHabit={removeHabit}
+                />
+              )}
               {activeTab === "profile" && (
                 <ProfileView
                   key="profile"
@@ -259,6 +284,15 @@ function DashboardShell() {
         notes={notes}
         tasks={tasks}
         transactions={transactions}
+      />
+
+      {/* AI Assistant */}
+      <AiAssistant
+        notes={notes}
+        tasks={tasks}
+        transactions={transactions}
+        onAddTask={(title, priority) => addTask(title, priority)}
+        activeNote={activeNote}
       />
     </ThemeProvider>
   );

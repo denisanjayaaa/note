@@ -26,6 +26,9 @@ interface TasksViewProps {
   ) => Promise<void>;
   updateTaskStatus: (id: string, status: Task["status"]) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
+  addSubtask?: (taskId: string, title: string) => Promise<void>;
+  toggleSubtask?: (taskId: string, subtaskId: string) => Promise<void>;
+  updateTags?: (taskId: string, tags: string[]) => Promise<void>;
 }
 
 const PRIORITY_LABELS = {
@@ -34,20 +37,90 @@ const PRIORITY_LABELS = {
   low: "Low",
 } as const;
 
+const TAG_COLORS = [
+  "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
+  "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400",
+  "bg-purple-100 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400",
+  "bg-pink-100 text-pink-700 dark:bg-pink-500/10 dark:text-pink-400",
+  "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400",
+  "bg-teal-100 text-teal-700 dark:bg-teal-500/10 dark:text-teal-400",
+];
+
+const ALL_TAGS = ["frontend", "backend", "design", "bug", "feature", "docs", "urgent", "research"];
+
+function SubtaskItem({
+  subtask,
+  onToggle,
+}: {
+  subtask: { id: string; title: string; done: boolean };
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <button
+      onClick={() => onToggle(subtask.id)}
+      className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-xs transition-colors hover:bg-accent/50"
+    >
+      <span
+        className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors ${
+          subtask.done
+            ? "border-emerald-500 bg-emerald-500 text-white"
+            : "border-muted-foreground/30"
+        }`}
+      >
+        {subtask.done && <span className="text-[8px]">✓</span>}
+      </span>
+      <span className={subtask.done ? "text-muted-foreground line-through" : ""}>
+        {subtask.title}
+      </span>
+    </button>
+  );
+}
+
 function TaskCard({
   task,
   index,
   onDelete,
+  onToggleSubtask,
+  onAddSubtask,
+  onUpdateTags,
+  onRemoveTag,
 }: {
   task: Task;
   index: number;
   onDelete: (id: string) => void;
+  onToggleSubtask?: (taskId: string, subtaskId: string) => void;
+  onAddSubtask?: (taskId: string, title: string) => void;
+  onUpdateTags?: (taskId: string, tags: string[]) => void;
+  onRemoveTag?: (taskId: string, tag: string) => void;
 }) {
+  const [showSubtasks, setShowSubtasks] = useState(false);
+  const [showTags, setShowTags] = useState(false);
+  const [newSubtask, setNewSubtask] = useState("");
+
+  const handleAddSubtask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubtask.trim() || !onAddSubtask) return;
+    onAddSubtask(task.id, newSubtask.trim());
+    setNewSubtask("");
+  };
+
+  const handleSelectTag = (tag: string) => {
+    const current = task.tags || [];
+    if (current.includes(tag)) {
+      onRemoveTag?.(task.id, tag);
+    } else {
+      onUpdateTags?.(task.id, [...current, tag]);
+    }
+  };
+
   const isOverdue =
     task.due_date &&
     task.status !== "done" &&
     new Date(task.due_date + "T00:00:00") <
       new Date(new Date().toDateString());
+
+  const doneSubtasks = task.subtasks?.filter((s) => s.done).length || 0;
+  const totalSubtasks = task.subtasks?.length || 0;
 
   return (
     <Draggable draggableId={task.id} index={index}>
@@ -55,7 +128,7 @@ function TaskCard({
         <div
           ref={p.innerRef}
           {...p.draggableProps}
-          className={`group rounded-lg border border-border bg-card transition-all ${
+          className={`group relative rounded-lg border border-border bg-card transition-all ${
             sn.isDragging ? "z-50 shadow-lg" : ""
           } ${isOverdue ? "border-l-2 border-l-destructive" : ""}`}
         >
@@ -68,6 +141,62 @@ function TaskCard({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">{task.title}</p>
+
+              {/* Tags */}
+              {task.tags && task.tags.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {task.tags.map((tag, ti) => (
+                    <span
+                      key={ti}
+                      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
+                        TAG_COLORS[ti % TAG_COLORS.length]
+                      }`}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Subtasks */}
+              {totalSubtasks > 0 && (
+                <div className="mt-1.5">
+                  <button
+                    onClick={() => setShowSubtasks(!showSubtasks)}
+                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                  >
+                    <div className="flex h-1 w-12 overflow-hidden rounded-full bg-muted-foreground/20">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${(doneSubtasks / totalSubtasks) * 100}%` }}
+                      />
+                    </div>
+                    <span>{doneSubtasks}/{totalSubtasks}</span>
+                    <span className="text-[8px]">{showSubtasks ? "▲" : "▼"}</span>
+                  </button>
+                  {showSubtasks && (
+                    <div className="mt-1 space-y-0.5">
+                      {task.subtasks.map((st) => (
+                        <SubtaskItem
+                          key={st.id}
+                          subtask={st}
+                          onToggle={(id) => onToggleSubtask?.(task.id, id)}
+                        />
+                      ))}
+                      <form onSubmit={handleAddSubtask} className="mt-1 flex gap-1">
+                        <input
+                          value={newSubtask}
+                          onChange={(e) => setNewSubtask(e.target.value)}
+                          placeholder="+ Add subtask..."
+                          className="flex-1 rounded border-0 bg-transparent px-2 py-0.5 text-xs outline-none ring-1 ring-border focus:ring-ring"
+                        />
+                      </form>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Priority & due date */}
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
@@ -97,12 +226,55 @@ function TaskCard({
                 )}
               </div>
             </div>
-            <button
-              onClick={() => onDelete(task.id)}
-              className="mt-0.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-            >
-              <Trash2 size={13} />
-            </button>
+            <div className="flex shrink-0 gap-0.5">
+              {/* Tag button */}
+              {onUpdateTags && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowTags(!showTags)}
+                    className="mt-0.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                    title="Add tag"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/>
+                      <path d="M7 7h.01"/>
+                    </svg>
+                  </button>
+                  {showTags && (
+                    <div
+                      className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-border bg-card p-2 shadow-lg"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex flex-wrap gap-1">
+                        {ALL_TAGS.map((tag) => {
+                          const isActive = task.tags?.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              onClick={() => handleSelectTag(tag)}
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                isActive
+                                  ? "bg-foreground text-background"
+                                  : "bg-muted text-muted-foreground hover:bg-accent"
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                onClick={() => onDelete(task.id)}
+                className="mt-0.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                title="Delete task"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -115,6 +287,9 @@ export function TasksView({
   addTask,
   updateTaskStatus,
   deleteTask,
+  addSubtask,
+  toggleSubtask,
+  updateTags,
 }: TasksViewProps) {
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState<Task["priority"]>("medium");
@@ -140,6 +315,25 @@ export function TasksView({
       );
     },
     [updateTaskStatus]
+  );
+
+  const handleUpdateTags = useCallback(
+    (taskId: string, tags: string[]) => {
+      updateTags?.(taskId, tags);
+    },
+    [updateTags]
+  );
+
+  const handleRemoveTag = useCallback(
+    (taskId: string, tag: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return;
+      updateTags?.(
+        taskId,
+        (task.tags || []).filter((t) => t !== tag)
+      );
+    },
+    [tasks, updateTags]
   );
 
   const columns = [
@@ -274,6 +468,10 @@ export function TasksView({
                           task={t}
                           index={i}
                           onDelete={deleteTask}
+                          onToggleSubtask={toggleSubtask}
+                          onAddSubtask={addSubtask}
+                          onUpdateTags={handleUpdateTags}
+                          onRemoveTag={handleRemoveTag}
                         />
                       ))}
                       {p.placeholder}

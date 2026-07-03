@@ -1,6 +1,13 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { FileText, CheckSquare, Wallet, ArrowUpRight, ArrowDownRight, TrendingUp } from "lucide-react";
+import {
+  FileText, CheckSquare, Wallet, ArrowUpRight, ArrowDownRight, TrendingUp,
+  BarChart3, Target,
+} from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  BarChart, Bar, CartesianGrid, Legend,
+} from "recharts";
 import type { Note, Task, Transaction } from "./data";
 import { DueDateReminder } from "./DueDateReminder";
 import { ExpenseChart } from "./ExpenseChart";
@@ -34,7 +41,7 @@ export function DashboardView({
         bg: "bg-blue-50 dark:bg-blue-500/10",
       },
       {
-        label: "Tasks",
+        label: "Active Tasks",
         value: tasks.filter((t) => t.status !== "done").length,
         icon: CheckSquare,
         color: "text-amber-500",
@@ -42,7 +49,7 @@ export function DashboardView({
       },
       {
         label: "Balance",
-        value: `Rp ${(balance).toLocaleString("id-ID")}`,
+        value: `Rp ${balance.toLocaleString("id-ID")}`,
         icon: Wallet,
         color: balance >= 0 ? "text-emerald-500" : "text-destructive",
         bg: "bg-emerald-50 dark:bg-emerald-500/10",
@@ -57,6 +64,44 @@ export function DashboardView({
     ],
     [notes, tasks, balance]
   );
+
+  // ─── Task Completion Rate (weekly) ───
+  const weeklyCompletion = useMemo(() => {
+    const days: { name: string; done: number; total: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split("T")[0];
+      const dayTasks = tasks.filter((t) => {
+        if (!t.due_date) return false;
+        // Compare due date to this day
+        return t.due_date === key;
+      });
+      days.push({
+        name: d.toLocaleDateString("en-US", { weekday: "short" }),
+        done: dayTasks.filter((t) => t.status === "done").length,
+        total: dayTasks.length,
+      });
+    }
+    return days;
+  }, [tasks]);
+
+  // ─── Income vs Expense Trend (last 7 days) ───
+  const trendData = useMemo(() => {
+    const days: { name: string; income: number; expense: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split("T")[0];
+      const dayTx = transactions.filter((t) => t.transaction_date === key);
+      days.push({
+        name: d.toLocaleDateString("en-US", { weekday: "short" }),
+        income: dayTx.filter((t) => t.type === "income").reduce((a, t) => a + Number(t.amount), 0),
+        expense: dayTx.filter((t) => t.type === "expense").reduce((a, t) => a + Number(t.amount), 0),
+      });
+    }
+    return days;
+  }, [transactions]);
 
   const recentActivity = useMemo(() => {
     const items: { id: string; type: string; title: string; date: string }[] =
@@ -77,6 +122,12 @@ export function DashboardView({
     );
   }, [notes, transactions]);
 
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) return `Rp${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `Rp${(value / 1000).toFixed(0)}K`;
+    return `Rp${value}`;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -85,7 +136,10 @@ export function DashboardView({
     >
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+          <BarChart3 size={24} className="text-muted-foreground" />
+          Dashboard
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Overview of your workspace
         </p>
@@ -117,6 +171,75 @@ export function DashboardView({
             </motion.div>
           );
         })}
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Income vs Expense Trend */}
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h3 className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <TrendingUp size={14} />
+            Income vs Expense Trend
+          </h3>
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip
+                  content={({ active, payload, label }) =>
+                    active && payload ? (
+                      <div className="rounded-md border bg-card px-3 py-2 text-sm shadow-sm">
+                        <p className="font-medium">{label}</p>
+                        {payload.map((p, i) => (
+                          <p key={i} style={{ color: p.color }} className="text-xs">
+                            {p.name}: Rp {Number(p.value).toLocaleString("id-ID")}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null
+                  }
+                />
+                <Line type="monotone" dataKey="income" stroke="#22c55e" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="expense" stroke="#ef4444" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Task Completion Rate */}
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h3 className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <Target size={14} />
+            Task Completion (7 days)
+          </h3>
+          <div className="h-[220px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weeklyCompletion}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip
+                  content={({ active, payload, label }) =>
+                    active && payload ? (
+                      <div className="rounded-md border bg-card px-3 py-2 text-sm shadow-sm">
+                        <p className="font-medium">{label}</p>
+                        {payload.map((p, i) => (
+                          <p key={i} style={{ color: p.color }} className="text-xs">
+                            {p.name}: {p.value}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null
+                  }
+                />
+                <Bar dataKey="done" fill="#22c55e" radius={[4, 4, 0, 0]} name="Done" />
+                <Bar dataKey="total" fill="hsl(var(--muted-foreground)/0.2)" radius={[4, 4, 0, 0]} name="Total" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
       </div>
 
       {/* Main content area */}
