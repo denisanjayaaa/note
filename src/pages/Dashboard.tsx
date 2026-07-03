@@ -45,7 +45,6 @@ const NAV_ITEMS: { id: ActiveTab; label: string; icon: typeof LayoutDashboard }[
   { id: "finance", label: "Finance", icon: Wallet },
   { id: "csv", label: "CSV Editor", icon: FileSpreadsheet },
   { id: "habits", label: "Habits", icon: Target },
-  { id: "profile", label: "Profile", icon: User },
   { id: "code", label: "Code", icon: Code2 },
 ];
 
@@ -168,10 +167,23 @@ function DashboardShell() {
                   );
                 })}
               </nav>
-              <div className="border-t border-border p-3">
-                <p className="text-[10px] text-muted-foreground/60">
-                  Workspace v1.0
-                </p>
+
+              {/* Separator */}
+              <div className="border-t border-border" />
+
+              {/* Profile at bottom */}
+              <div className="p-3">
+                <button
+                  onClick={() => handleNavigate("profile")}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    activeTab === "profile"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                  }`}
+                >
+                  <User size={16} />
+                  Profile
+                </button>
               </div>
             </motion.aside>
           )}
