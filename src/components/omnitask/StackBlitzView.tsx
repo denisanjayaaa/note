@@ -134,17 +134,26 @@ export default function StackBlitzView() {
     });
   }, []);
 
-  // Embed StackBlitz editor on mount
+  // Embed StackBlitz editor when component mounts
   useEffect(() => {
     const el = embedRef.current;
     if (!el) return;
-    sdk
-      .embedProject(el, PROJECT_OPTIONS, {
-        clickToLoad: true,
-        openFile: "src/main.tsx",
-      })
-      .then(() => setEmbedLoaded(true))
-      .catch(() => {});
+
+    // Small delay to ensure DOM is fully ready
+    const timer = setTimeout(() => {
+      sdk
+        .embedProject(el, PROJECT_OPTIONS, {
+          clickToLoad: true,
+          openFile: "src/main.tsx",
+        })
+        .then(() => setEmbedLoaded(true))
+        .catch(() => {
+          // Hides loading overlay so user can use "Open Full" button instead
+          setEmbedLoaded(true);
+        });
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -220,13 +229,11 @@ export default function StackBlitzView() {
           </button>
         </div>
 
-        {/* Editor iframe container */}
-        <div
-          ref={embedRef}
-          className={`w-full ${expanded ? "flex-1 min-h-0" : "h-[520px]"}`}
-        >
+        {/* Editor area: separate loading placeholder from embed target */}
+        <div className={`relative w-full ${expanded ? "flex-1 min-h-0" : "h-[520px]"}`}>
+          {/* Loading overlay — shown until embed loads */}
           {!embedLoaded && (
-            <div className="flex h-full flex-col items-center justify-center gap-3">
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-card">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-500/30 border-t-emerald-500" />
               <p className="text-xs text-muted-foreground">
                 Loading StackBlitz editor...
@@ -240,6 +247,8 @@ export default function StackBlitzView() {
               </button>
             </div>
           )}
+          {/* Empty container for StackBlitz iframe — SDK renders into this */}
+          <div ref={embedRef} className="h-full w-full" />
         </div>
       </div>
 
