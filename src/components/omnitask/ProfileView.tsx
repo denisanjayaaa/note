@@ -18,12 +18,14 @@ import {
   Pencil,
   Save,
   X,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
 import type { Note, Task, Transaction } from "./data";
 
 interface ProfileViewProps {
@@ -505,7 +507,10 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
                       className="h-7 w-full text-xs"
                     />
                     {usernameError && (
-                      <p className="text-[10px] text-destructive">{usernameError}</p>
+                      <div className="flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5">
+                        <AlertCircle size={11} className="text-destructive shrink-0" />
+                        <p className="text-[10px] text-destructive font-medium">{usernameError}</p>
+                      </div>
                     )}
                     <div className="flex gap-1">
                       <button
@@ -517,11 +522,18 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
                           setSaving(true);
                           try {
                             await updateProfile({ username: u });
+                            toast.success("Username saved");
                             setUsernameSaved(true);
                             setEditingUsername(false);
                             setTimeout(() => setUsernameSaved(false), 2000);
                           } catch (e) {
-                            setUsernameError((e as Error).message);
+                            const msg = (e as Error).message;
+                            if (msg === "Username already taken") {
+                              toast.error("Username already taken — try something else");
+                            } else {
+                              toast.error(msg || "Failed to save username");
+                            }
+                            setUsernameError(msg);
                           }
                           setSaving(false);
                         }}
