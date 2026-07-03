@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   Target,
+  Code2,
 } from "lucide-react";
 import { Navigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
@@ -25,6 +26,7 @@ import { CsvEditor } from "@/components/omnitask/CsvEditor";
 import { ProfileView } from "@/components/omnitask/ProfileView";
 import { HabitTracker } from "@/components/omnitask/HabitTracker";
 import { AiAssistant } from "@/components/omnitask/AiAssistant";
+import StackBlitzView from "@/components/omnitask/StackBlitzView";
 import {
   ThemeProvider,
   useNotes,
@@ -44,6 +46,7 @@ const NAV_ITEMS: { id: ActiveTab; label: string; icon: typeof LayoutDashboard }[
   { id: "csv", label: "CSV Editor", icon: FileSpreadsheet },
   { id: "habits", label: "Habits", icon: Target },
   { id: "profile", label: "Profile", icon: User },
+  { id: "code", label: "Code", icon: Code2 },
 ];
 
 function DashboardShell() {
@@ -285,6 +288,9 @@ function DashboardShell() {
                   tasks={tasks}
                   transactions={transactions}
                 />
+              )}
+              {activeTab === "code" && (
+                <StackBlitzView key="code" />
               )}
             </AnimatePresence>
           </main>

@@ -12,7 +12,8 @@ export type ActiveTab =
   | "finance"
   | "csv"
   | "profile"
-  | "habits";
+  | "habits"
+  | "code";
 
 export interface Note {
   id: string;
