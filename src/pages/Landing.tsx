@@ -163,7 +163,7 @@ export default function Landing() {
       <footer className="relative z-10 border-t border-border">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <p className="text-xs text-muted-foreground/60">
-            Workspace &mdash; Built with Freebuff
+            Workspace &mdash; Built with ❤️
           </p>
           <p className="text-xs text-muted-foreground/40">
             &copy; {new Date().getFullYear()}
