@@ -287,8 +287,9 @@ function ContributionHeatmap({
 // ─── Main ProfileView ───
 
 export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
-  const { user, signOut } = useAuth();
+  const { user, signIn, signOut } = useAuth();
   const updateProfile = useMutation(api.users.updateProfile);
+  const updateEmail = useMutation(api.users.updateEmail);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
@@ -299,11 +300,13 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
   const [saved, setSaved] = useState(false);
 
   // Username state
+  const [editingUsername, setEditingUsername] = useState(false);
   const [editUsername, setEditUsername] = useState("");
   const [usernameError, setUsernameError] = useState("");
   const [usernameSaved, setUsernameSaved] = useState(false);
 
   // Email OTP state
+  const [editingEmail, setEditingEmail] = useState(false);
   const [editEmail, setEditEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
