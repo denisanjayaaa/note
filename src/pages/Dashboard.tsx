@@ -294,6 +294,7 @@ function DashboardShell() {
         notes={notes}
         tasks={tasks}
         transactions={transactions}
+        habits={habits}
       />
 
       {/* AI Assistant */}

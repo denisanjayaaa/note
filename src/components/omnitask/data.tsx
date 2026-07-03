@@ -75,6 +75,7 @@ export interface SearchResult {
   title: string;
   subtitle: string;
   color: string;
+  _matchField?: string;
 }
 
 // ─── Theme Context ───
