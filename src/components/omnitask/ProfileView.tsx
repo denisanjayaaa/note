@@ -432,7 +432,9 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
                           setSaved(true);
                           setEditing(false);
                           setTimeout(() => setSaved(false), 2000);
-                        } catch {}
+                        } catch (e) {
+                            console.error("Profile save error:", e);
+                          }
                         setSaving(false);
                       }}
                       disabled={saving}
@@ -527,13 +529,14 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
                             setEditingUsername(false);
                             setTimeout(() => setUsernameSaved(false), 2000);
                           } catch (e) {
-                            const msg = (e as Error).message;
-                            if (msg === "Username already taken") {
+                            const msg = (e as Error).message || "";
+                            if (msg.includes("Username already taken")) {
                               toast.error("Username already taken — try something else");
+                              setUsernameError("Username sudah digunakan, coba yang lain");
                             } else {
                               toast.error(msg || "Failed to save username");
+                              setUsernameError(msg);
                             }
-                            setUsernameError(msg);
                           }
                           setSaving(false);
                         }}
