@@ -241,11 +241,24 @@ export function GlobalSearch({
               className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/40"
               autoComplete="off"
             />
+            {/* Clear query button */}
             {query && (
-              <button onClick={() => setQuery("")} className="rounded p-0.5 text-muted-foreground/60 hover:text-foreground">
-                <X size={16} />
+              <button
+                onClick={() => setQuery("")}
+                className="rounded p-1 text-muted-foreground/40 transition-colors hover:bg-accent hover:text-foreground"
+                title="Clear query"
+              >
+                <X size={14} />
               </button>
             )}
+            {/* Close search button */}
+            <button
+              onClick={onClose}
+              className="rounded p-1.5 text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
+              title="Close search (Esc)"
+            >
+              <X size={16} />
+            </button>
           </div>
 
           {/* Module filter chips */}
