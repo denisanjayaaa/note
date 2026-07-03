@@ -63,8 +63,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setIsLoading(true);
     setError(null);
     try {
-      const formData = new FormData(event.currentTarget);
-      await signIn("email-otp", formData);
+      const email = typeof step === "object" ? step.email : "";
+      await signIn("email-otp", { email, code: otp });
 
       console.log("signed in");
 
