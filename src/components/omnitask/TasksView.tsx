@@ -19,6 +19,7 @@ import {
 import type { Task } from "./data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerPopover } from "@/components/ui/date-picker-popover";
 
 interface TasksViewProps {
   tasks: Task[];
@@ -369,11 +370,10 @@ function EditTaskModal({
               </div>
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">Due Date</label>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+                <DatePickerPopover
+                  value={dueDate || undefined}
+                  onChange={(d) => setDueDate(d || "")}
+                  placeholder="Set due date"
                 />
               </div>
             </div>
@@ -527,11 +527,11 @@ export function TasksView({
               <option value="medium">Medium</option>
               <option value="high">High</option>
             </select>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+            <DatePickerPopover
+              value={dueDate || undefined}
+              onChange={(d) => setDueDate(d || "")}
+              placeholder="Due date"
+              className="sm:col-span-1"
             />
           </div>
           <div className="mt-3 flex gap-2">

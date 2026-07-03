@@ -12,6 +12,7 @@ import {
 import type { Transaction } from "./data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePickerPopover } from "@/components/ui/date-picker-popover";
 import { ExpenseChart } from "./ExpenseChart";
 
 interface FinanceViewProps {
@@ -152,11 +153,10 @@ function EditTransactionModal({
 
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">Date</label>
-              <input
-                type="date"
+              <DatePickerPopover
                 value={transactionDate}
-                onChange={(e) => setTransactionDate(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+                onChange={(d) => setTransactionDate(d || new Date().toISOString().split("T")[0])}
+                placeholder="Select date"
               />
             </div>
 
