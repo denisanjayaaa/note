@@ -15,9 +15,15 @@ import {
   BarChart3,
   Trophy,
   Activity,
+  Pencil,
+  Save,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import type { Note, Task, Transaction } from "./data";
 
 interface ProfileViewProps {
@@ -282,9 +288,15 @@ function ContributionHeatmap({
 
 export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
   const { user, signOut } = useAuth();
+  const updateProfile = useMutation(api.users.updateProfile);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editImage, setEditImage] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const shortUserId = useMemo(() => {
     if (!user?._id) return "------";
@@ -364,12 +376,90 @@ export function ProfileView({ notes, tasks, transactions }: ProfileViewProps) {
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         <div className="h-20 bg-gradient-to-r from-foreground/5 to-foreground/10" />
         <div className="-mt-10 flex items-end gap-4 px-6 pb-6">
-          <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-foreground/10 border-2 border-background text-2xl font-bold text-foreground">
-            {user?.email?.[0]?.toUpperCase() || "?"}
+          <div className="relative">
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl bg-foreground/10 border-2 border-background">
+              {user?.image && !editing ? (
+                <img src={user.image} alt="" className="h-full w-full object-cover" />
+              ) : editing && editImage ? (
+                <img src={editImage} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-2xl font-bold text-foreground">
+                  {(user?.name?.[0] || user?.email?.[0] || "?").toUpperCase()}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="pb-1">
-            <h2 className="text-lg font-semibold">{user?.email || "Guest"}</h2>
-            <p className="text-sm text-muted-foreground">Workspace member</p>
+          <div className="flex flex-1 items-start justify-between pb-1">
+            <div>
+              {editing ? (
+                <div className="space-y-2">
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="Your name"
+                    className="h-8 w-48 text-sm"
+                  />
+                  <Input
+                    value={editImage}
+                    onChange={(e) => setEditImage(e.target.value)}
+                    placeholder="Avatar URL (optional)"
+                    className="h-8 w-48 text-sm"
+                  />
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={async () => {
+                        setSaving(true);
+                        try {
+                          await updateProfile({ name: editName || undefined, image: editImage || undefined });
+                          setSaved(true);
+                          setEditing(false);
+                          setTimeout(() => setSaved(false), 2000);
+                        } catch {}
+                        setSaving(false);
+                      }}
+                      disabled={saving}
+                      className="inline-flex items-center gap-1 rounded-md bg-foreground px-2.5 py-1 text-[11px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      <Save size={12} />
+                      {saving ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditing(false);
+                        setEditName(user?.name || "");
+                        setEditImage(user?.image || "");
+                      }}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-accent"
+                    >
+                      <X size={12} />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-semibold">{user?.name || user?.email || "Guest"}</h2>
+                    {saved && <CheckCircle2 size={14} className="text-emerald-500" />}
+                  </div>
+                  {user?.name && <p className="text-sm text-muted-foreground">{user?.email}</p>}
+                  {!user?.name && <p className="text-sm text-muted-foreground">Workspace member</p>}
+                </>
+              )}
+            </div>
+            {!editing && (
+              <button
+                onClick={() => {
+                  setEditName(user?.name || "");
+                  setEditImage(user?.image || "");
+                  setEditing(true);
+                }}
+                className="rounded-md p-1.5 text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
+                title="Edit profile"
+              >
+                <Pencil size={14} />
+              </button>
+            )}
           </div>
         </div>
       </div>
