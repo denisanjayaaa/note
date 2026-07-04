@@ -16,7 +16,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const convex = new ConvexReactClient(
-  "https://opulent-crocodile-797.convex.cloud"
+  "https://clear-herring-980.convex.cloud"
 );
 
 
