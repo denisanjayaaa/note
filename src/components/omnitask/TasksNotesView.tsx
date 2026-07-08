@@ -13,6 +13,9 @@ import {
   Folder,
   FileText,
   ListChecks,
+  Sparkles,
+  Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import {
   DragDropContext,
@@ -24,6 +27,7 @@ import type { Task, Note } from "./data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerPopover } from "@/components/ui/date-picker-popover";
+import { parseNaturalInput } from "@/lib/gemini";
 
 // ─── Types ───
 
@@ -658,6 +662,52 @@ export function TasksNotesView({
   const [noteContent, setNoteContent] = useState("");
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
+  // AI Smart Add
+  const [smartInput, setSmartInput] = useState("");
+  const [smartLoading, setSmartLoading] = useState(false);
+  const [smartResult, setSmartResult] = useState<string | null>(null);
+  const [smartError, setSmartError] = useState<string | null>(null);
+
+  const handleSmartAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!smartInput.trim() || smartLoading) return;
+    setSmartLoading(true);
+    setSmartResult(null);
+    setSmartError(null);
+
+    try {
+      const parsed = await parseNaturalInput(smartInput.trim());
+
+      // Create note if AI detected one
+      if (parsed.note) {
+        await addNote(parsed.note.title, parsed.note.content);
+      }
+
+      // Create task if AI detected one
+      if (parsed.task) {
+        await addTask(parsed.task.title, parsed.task.priority, parsed.task.due_date || undefined);
+      }
+
+      // If neither, create both as fallback
+      if (!parsed.note && !parsed.task) {
+        await addNote(smartInput.trim(), `Auto-created from: ${smartInput.trim()}`);
+        await addTask(smartInput.trim(), "medium");
+      }
+
+      setSmartResult(parsed.summary || "Created successfully!");
+      setSmartInput("");
+    } catch (err) {
+      setSmartError("Failed to process. Creating note and task manually.");
+      // Fallback: create manually
+      await addNote(smartInput.trim(), `Auto-created from: ${smartInput.trim()}`);
+      await addTask(smartInput.trim(), "medium");
+      setSmartInput("");
+    } finally {
+      setSmartLoading(false);
+      setTimeout(() => { setSmartResult(null); setSmartError(null); }, 3000);
+    }
+  };
+
   // Task handlers
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -757,6 +807,48 @@ export function TasksNotesView({
           </Button>
         </div>
       </div>
+
+      {/* AI Smart Add */}
+      <form onSubmit={handleSmartAdd} className="relative mb-4">
+        <div className={`flex items-center gap-2 rounded-lg border bg-card px-4 py-3 transition-all ${
+          smartLoading ? "border-amber-400 ring-1 ring-amber-400/30" :
+          smartResult ? "border-emerald-400 ring-1 ring-emerald-400/30" :
+          smartError ? "border-destructive/50 ring-1 ring-destructive/20" :
+          "border-border hover:border-muted-foreground/30"
+        }`}>
+          <Sparkles size={16} className={`shrink-0 ${
+            smartLoading ? "text-amber-500 animate-pulse" :
+            smartResult ? "text-emerald-500" :
+            "text-amber-500/60"
+          }`} />
+          <input
+            value={smartInput}
+            onChange={(e) => setSmartInput(e.target.value)}
+            placeholder="Tulis task atau note dengan AI... contoh: &quot;pertemuan meeting tanggal 10 jul 2026, high&quot;"
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/40"
+            disabled={smartLoading}
+          />
+          {smartLoading ? (
+            <Loader2 size={16} className="animate-spin text-muted-foreground" />
+          ) : smartResult ? (
+            <CheckCircle2 size={16} className="text-emerald-500" />
+          ) : (
+            <button
+              type="submit"
+              disabled={!smartInput.trim()}
+              className="rounded-md bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-600 transition-colors hover:bg-amber-500/20 disabled:opacity-40 dark:text-amber-400"
+            >
+              AI Add
+            </button>
+          )}
+        </div>
+        {smartResult && (
+          <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">✓ {smartResult}</p>
+        )}
+        {smartError && (
+          <p className="mt-1 text-xs text-destructive">{smartError}</p>
+        )}
+      </form>
 
       {/* Quick-add forms */}
       <AnimatePresence>
