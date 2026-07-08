@@ -35,7 +35,7 @@ interface TasksNotesViewProps {
   tasks: Task[];
   notes: Note[];
   folders: string[];
-  addTask: (title: string, priority: Task["priority"], dueDate?: string) => Promise<void>;
+  addTask: (title: string, priority: Task["priority"], dueDate?: string, status?: Task["status"]) => Promise<void>;
   updateTaskStatus: (id: string, status: Task["status"]) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   addSubtask?: (taskId: string, title: string) => Promise<void>;
@@ -116,6 +116,12 @@ function TaskCard({
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
+  const [customTags, setCustomTags] = useState<string[]>([]);
+  const [newTagInput, setNewTagInput] = useState("");
+
+  // All available tags = defaults + custom
+  const DEFAULT_TAGS = ["frontend","backend","design","bug","feature","docs","urgent","research"];
+  const allAvailableTags = [...DEFAULT_TAGS, ...customTags];
 
   const handleAddSubtask = (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,27 +270,64 @@ function TaskCard({
                   </button>
                   {showTags && (
                     <div
-                      className="absolute right-0 top-full z-10 mt-1 w-44 rounded-lg border border-border bg-card p-2 shadow-lg"
+                      className="absolute right-0 top-full z-10 mt-1 w-52 rounded-lg border border-border bg-card p-2 shadow-lg"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex flex-wrap gap-1">
-                        {["frontend","backend","design","bug","feature","docs","urgent","research"].map((tag) => {
+                        {allAvailableTags.map((tag) => {
                           const isActive = task.tags?.includes(tag);
+                          const isCustom = customTags.includes(tag);
                           return (
-                            <button
-                              key={tag}
-                              onClick={() => handleSelectTag(tag)}
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                                isActive
-                                  ? "bg-foreground text-background"
-                                  : "bg-muted text-muted-foreground hover:bg-accent"
-                              }`}
-                            >
-                              {tag}
-                            </button>
+                            <span key={tag} className="inline-flex items-center gap-0.5">
+                              <button
+                                onClick={() => handleSelectTag(tag)}
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                                  isActive
+                                    ? "bg-foreground text-background"
+                                    : "bg-muted text-muted-foreground hover:bg-accent"
+                                }`}
+                              >
+                                {tag}
+                              </button>
+                              {isCustom && (
+                                <button
+                                  onClick={() => setCustomTags((prev) => prev.filter((t) => t !== tag))}
+                                  className="rounded-full p-0.5 text-muted-foreground/30 hover:text-destructive"
+                                  title="Remove tag"
+                                >
+                                  <X size={9} />
+                                </button>
+                              )}
+                            </span>
                           );
                         })}
                       </div>
+                      {/* Add custom tag input */}
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const tag = newTagInput.trim().toLowerCase();
+                          if (tag && !allAvailableTags.includes(tag)) {
+                            setCustomTags((prev) => [...prev, tag]);
+                            setNewTagInput("");
+                          }
+                        }}
+                        className="mt-2 flex gap-1 border-t border-border pt-2"
+                      >
+                        <input
+                          value={newTagInput}
+                          onChange={(e) => setNewTagInput(e.target.value)}
+                          placeholder="+ Add tag..."
+                          className="min-w-0 flex-1 rounded border-0 bg-transparent px-1 py-0.5 text-[10px] outline-none ring-1 ring-border focus:ring-ring"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!newTagInput.trim()}
+                          className="rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent disabled:opacity-40"
+                        >
+                          Add
+                        </button>
+                      </form>
                     </div>
                   )}
                 </div>
@@ -760,7 +803,7 @@ export function TasksNotesView({
           const title = note.content
             ? `${note.title}: ${note.content}`
             : note.title;
-          addTask(title.slice(0, 100), "medium");
+          addTask(title.slice(0, 100), "medium", undefined, destination.droppableId as Task["status"]);
           // Remove the note after creating the task
           deleteNote(noteId);
         }

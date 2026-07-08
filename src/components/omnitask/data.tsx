@@ -416,13 +416,14 @@ export function useTasks() {
     async (
       title: string,
       priority: Task["priority"] = "medium",
-      due_date?: string
+      due_date?: string,
+      status: Task["status"] = "todo"
     ) => {
       const t: Task = {
         id: Date.now().toString(),
         title,
         description: "",
-      status: "todo",
+      status,
       priority,
       due_date: due_date || null,
       parent_id: null,
