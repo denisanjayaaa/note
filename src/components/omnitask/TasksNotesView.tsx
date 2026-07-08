@@ -455,10 +455,11 @@ function NotesPanel({
           >
             <div className="max-h-[500px] space-y-0.5 overflow-y-auto p-2">
               {/* Pinned notes */}
-              {pinned.map((note) => (
+              {pinned.map((note, i) => (
                 <NoteCard
                   key={note.id}
                   note={note}
+                  index={i}
                   isEditing={editingId === note.id}
                   editTitle={editTitle}
                   editContent={editContent}
@@ -479,10 +480,11 @@ function NotesPanel({
               )}
 
               {/* Unpinned notes */}
-              {unpinned.map((note) => (
+              {unpinned.map((note, i) => (
                 <NoteCard
                   key={note.id}
                   note={note}
+                  index={pinned.length + i}
                   isEditing={editingId === note.id}
                   editTitle={editTitle}
                   editContent={editContent}
@@ -514,6 +516,7 @@ function NotesPanel({
 
 function NoteCard({
   note,
+  index,
   isEditing,
   editTitle,
   editContent,
@@ -527,6 +530,7 @@ function NoteCard({
   onNoteSelect,
 }: {
   note: Note;
+  index: number;
   isEditing: boolean;
   editTitle: string;
   editContent: string;
@@ -544,15 +548,10 @@ function NoteCard({
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSaveEdit();
   };
 
-  return (
-    <div
-      className={`group rounded-lg border px-3 py-2 transition-all ${
-        note.is_pinned
-          ? "border-l-2 border-l-amber-400 border-border bg-amber-50/30 dark:bg-amber-500/5"
-          : "border-transparent hover:border-border hover:bg-accent/30"
-      } ${isEditing ? "border-border bg-card ring-1 ring-ring" : ""}`}
-    >
-      {isEditing ? (
+  // Don't allow dragging while editing
+  if (isEditing) {
+    return (
+      <div className="rounded-lg border border-border bg-card px-3 py-2 ring-1 ring-ring">
         <div className="space-y-2" onKeyDown={handleKeyDown}>
           <Input
             value={editTitle}
@@ -584,53 +583,72 @@ function NoteCard({
             </button>
           </div>
         </div>
-      ) : (
-        <div className="flex items-start gap-2">
-          <div className="flex-1 min-w-0">
-            <button
-              onClick={() => { onStartEdit(); onNoteSelect?.(note); }}
-              className="w-full text-left"
-            >
-              <p className="text-sm font-medium leading-tight truncate">{note.title}</p>
-              {note.content && (
-                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{note.content}</p>
+      </div>
+    );
+  }
+
+  return (
+    <Draggable draggableId={`note-${note.id}`} index={index}>
+      {(p, sn) => (
+        <div
+          ref={p.innerRef}
+          {...p.draggableProps}
+          {...p.dragHandleProps}
+          className={`group rounded-lg border px-3 py-2 transition-all ${
+            sn.isDragging ? "z-50 shadow-lg ring-2 ring-amber-400/40 opacity-90" : ""
+          } ${
+            note.is_pinned
+              ? "border-l-2 border-l-amber-400 border-border bg-amber-50/30 dark:bg-amber-500/5"
+              : "border-transparent hover:border-border hover:bg-accent/30"
+          }`}
+        >
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <button
+                onClick={() => { onStartEdit(); onNoteSelect?.(note); }}
+                className="w-full text-left"
+              >
+                <p className="text-sm font-medium leading-tight truncate">{note.title}</p>
+                {note.content && (
+                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{note.content}</p>
+                )}
+              </button>
+              {note.folder_path && note.folder_path !== "/" && (
+                <div className="mt-1 flex items-center gap-1">
+                  <Folder size={9} className="text-muted-foreground/40" />
+                  <span className="text-[9px] text-muted-foreground/40">{note.folder_path}</span>
+                </div>
               )}
-            </button>
-            {note.folder_path && note.folder_path !== "/" && (
-              <div className="mt-1 flex items-center gap-1">
-                <Folder size={9} className="text-muted-foreground/40" />
-                <span className="text-[9px] text-muted-foreground/40">{note.folder_path}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-            <button
-              onClick={() => { onStartEdit(); onNoteSelect?.(note); }}
-              className="rounded p-0.5 text-muted-foreground/40 hover:text-foreground"
-              title="Edit note"
-            >
-              <Edit3 size={11} />
-            </button>
-            <button
-              onClick={onTogglePin}
-              className={`rounded p-0.5 transition-colors ${
-                note.is_pinned ? "text-amber-500" : "text-muted-foreground/40 hover:text-foreground"
-              }`}
-              title={note.is_pinned ? "Unpin" : "Pin"}
-            >
-              <Pin size={11} />
-            </button>
-            <button
-              onClick={onDelete}
-              className="rounded p-0.5 text-muted-foreground/40 hover:text-destructive"
-              title="Delete note"
-            >
-              <Trash2 size={11} />
-            </button>
+            </div>
+            <div className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <button
+                onClick={() => { onStartEdit(); onNoteSelect?.(note); }}
+                className="rounded p-0.5 text-muted-foreground/40 hover:text-foreground"
+                title="Edit note"
+              >
+                <Edit3 size={11} />
+              </button>
+              <button
+                onClick={onTogglePin}
+                className={`rounded p-0.5 transition-colors ${
+                  note.is_pinned ? "text-amber-500" : "text-muted-foreground/40 hover:text-foreground"
+                }`}
+                title={note.is_pinned ? "Unpin" : "Pin"}
+              >
+                <Pin size={11} />
+              </button>
+              <button
+                onClick={onDelete}
+                className="rounded p-0.5 text-muted-foreground/40 hover:text-destructive"
+                title="Delete note"
+              >
+                <Trash2 size={11} />
+              </button>
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </Draggable>
   );
 }
 
@@ -722,9 +740,47 @@ export function TasksNotesView({
   const onDragEnd = useCallback(
     (result: DropResult) => {
       if (!result.destination) return;
-      updateTaskStatus(result.draggableId, result.destination.droppableId as Task["status"]);
+
+      const { draggableId, destination, source } = result;
+      const isNote = draggableId.startsWith("note-");
+      const destIsNotePanel = destination.droppableId === "notes";
+      const destIsTaskColumn = ["todo", "in_progress", "done"].includes(destination.droppableId);
+
+      // Note dropped on task column → create task from note
+      if (isNote && destIsTaskColumn) {
+        const noteId = draggableId.replace("note-", "");
+        const note = notes.find((n) => n.id === noteId);
+        if (note) {
+          const title = note.content
+            ? `${note.title}: ${note.content}`
+            : note.title;
+          addTask(title.slice(0, 100), "medium");
+        }
+        return;
+      }
+
+      // Task dropped on notes panel → create note from task
+      if (!isNote && destIsNotePanel) {
+        const task = tasks.find((t) => t.id === draggableId);
+        if (task) {
+          const content = task.description || task.due_date
+            ? `Priority: ${task.priority}${task.due_date ? ` | Due: ${task.due_date}` : ""}${task.description ? `\n${task.description}` : ""}`
+            : `Dari task: ${task.title}`;
+          addNote(task.title, content);
+        }
+        return;
+      }
+
+      // Task dropped on task column → update status (existing)
+      if (!isNote && destIsTaskColumn) {
+        updateTaskStatus(draggableId, destination.droppableId as Task["status"]);
+        return;
+      }
+
+      // Note dropped on notes panel → ignore (no reorder for now)
+      if (isNote && destIsNotePanel) return;
     },
-    [updateTaskStatus]
+    [updateTaskStatus, notes, tasks, addTask, addNote]
   );
 
   const handleUpdateTags = useCallback(
@@ -924,11 +980,11 @@ export function TasksNotesView({
         )}
       </AnimatePresence>
 
-      {/* Two-column layout */}
-      <div className="flex flex-col gap-4 lg:flex-row">
-        {/* Left: Kanban Board */}
-        <div className="min-w-0 flex-1">
-          <DragDropContext onDragEnd={onDragEnd}>
+      {/* Two-column layout with cross-type drag-and-drop */}
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="flex flex-col gap-4 lg:flex-row">
+          {/* Left: Kanban Board */}
+          <div className="min-w-0 flex-1">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               {columns.map((col) => {
                 const items = tasks.filter((t) => t.status === col.id);
@@ -970,7 +1026,7 @@ export function TasksNotesView({
                             <div className="flex flex-col items-center justify-center py-8">
                               <MoreHorizontal size={16} className="text-muted-foreground/30" />
                               <p className="mt-1.5 text-[11px] text-muted-foreground/40">
-                                Drop tasks here
+                                Drop tasks or notes here
                               </p>
                             </div>
                           )}
@@ -981,20 +1037,40 @@ export function TasksNotesView({
                 );
               })}
             </div>
-          </DragDropContext>
-        </div>
+          </div>
 
-        {/* Right: Notes Panel */}
-        <div className="w-full shrink-0 lg:w-72">
-          <NotesPanel
-            notes={notes}
-            togglePinNote={togglePinNote}
-            deleteNote={deleteNote}
-            updateNote={updateNote}
-            onNoteSelect={onNoteSelect}
-          />
+          {/* Right: Notes Panel — now a droppable area */}
+          <Droppable droppableId="notes">
+            {(p, sn) => (
+              <div
+                ref={p.innerRef}
+                {...p.droppableProps}
+                className={`w-full shrink-0 lg:w-72 transition-all ${
+                  sn.isDraggingOver
+                    ? "rounded-lg ring-2 ring-amber-400/50 ring-offset-2 ring-offset-background"
+                    : ""
+                }`}
+              >
+                <NotesPanel
+                  notes={notes}
+                  togglePinNote={togglePinNote}
+                  deleteNote={deleteNote}
+                  updateNote={updateNote}
+                  onNoteSelect={onNoteSelect}
+                />
+                {p.placeholder}
+                {sn.isDraggingOver && (
+                  <div className="mt-2 rounded-lg border-2 border-dashed border-amber-400/40 bg-amber-50/20 p-3 text-center dark:bg-amber-500/5">
+                    <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                      Drop here to create a Note from this Task
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </Droppable>
         </div>
-      </div>
+      </DragDropContext>
 
       {/* Edit modal */}
       {editingTask && (
