@@ -593,8 +593,7 @@ function NoteCard({
         <div
           ref={p.innerRef}
           {...p.draggableProps}
-          {...p.dragHandleProps}
-          className={`group rounded-lg border px-3 py-2 transition-all ${
+          className={`group relative rounded-lg border px-3 py-2 transition-all ${
             sn.isDragging ? "z-50 shadow-lg ring-2 ring-amber-400/40 opacity-90" : ""
           } ${
             note.is_pinned
@@ -603,6 +602,13 @@ function NoteCard({
           }`}
         >
           <div className="flex items-start gap-2">
+            {/* Dedicated drag handle — appears on hover */}
+            <div
+              {...p.dragHandleProps}
+              className="mt-0.5 cursor-grab text-muted-foreground/20 opacity-0 transition-opacity hover:text-muted-foreground/50 group-hover:opacity-100"
+            >
+              <GripVertical size={12} />
+            </div>
             <div className="flex-1 min-w-0">
               <button
                 onClick={() => { onStartEdit(); onNoteSelect?.(note); }}
@@ -746,7 +752,7 @@ export function TasksNotesView({
       const destIsNotePanel = destination.droppableId === "notes";
       const destIsTaskColumn = ["todo", "in_progress", "done"].includes(destination.droppableId);
 
-      // Note dropped on task column → create task from note
+      // Note dropped on task column → create task from note, then remove note
       if (isNote && destIsTaskColumn) {
         const noteId = draggableId.replace("note-", "");
         const note = notes.find((n) => n.id === noteId);
@@ -755,11 +761,13 @@ export function TasksNotesView({
             ? `${note.title}: ${note.content}`
             : note.title;
           addTask(title.slice(0, 100), "medium");
+          // Remove the note after creating the task
+          deleteNote(noteId);
         }
         return;
       }
 
-      // Task dropped on notes panel → create note from task
+      // Task dropped on notes panel → create note from task, then remove task
       if (!isNote && destIsNotePanel) {
         const task = tasks.find((t) => t.id === draggableId);
         if (task) {
@@ -767,6 +775,8 @@ export function TasksNotesView({
             ? `Priority: ${task.priority}${task.due_date ? ` | Due: ${task.due_date}` : ""}${task.description ? `\n${task.description}` : ""}`
             : `Dari task: ${task.title}`;
           addNote(task.title, content);
+          // Remove the task after creating the note
+          deleteTask(draggableId);
         }
         return;
       }
