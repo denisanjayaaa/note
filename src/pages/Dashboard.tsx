@@ -17,6 +17,7 @@ import {
 import { Navigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { GlobalSearch } from "@/components/omnitask/GlobalSearch";
+import { CommandBar } from "@/components/omnitask/CommandBar";
 import { DashboardView } from "@/components/omnitask/DashboardView";
 import { NotesView } from "@/components/omnitask/NotesView";
 import { TasksNotesView } from "@/components/omnitask/TasksNotesView";
@@ -223,7 +224,38 @@ function DashboardShell() {
           </header>
 
           {/* Page content */}
-          <main className="flex-1 overflow-auto p-6 lg:p-8">
+          <main className="flex-1 overflow-auto">
+            {/* Command bar hero section */}
+            {activeTab !== "profile" && activeTab !== "csv" && activeTab !== "code" && (
+              <div className="border-b border-border bg-gradient-to-b from-muted/30 to-background px-4 py-8 lg:px-8">
+                <motion.div
+                  initial={{ opacity: 0, y: -12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mx-auto max-w-2xl"
+                >
+                  <div className="mb-4 text-center">
+                    <h1 className="text-xl font-semibold tracking-tight">
+                      {activeTab === "dashboard" ? "Selamat datang di Studio Refine" :
+                       activeTab === "tasks" ? "Tasks & Notes" :
+                       activeTab === "finance" ? "Finance" :
+                       activeTab === "calendar" ? "Calendar" :
+                       activeTab === "habits" ? "Habits" : ""}
+                    </h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {activeTab === "dashboard"
+                        ? "Ketik apa pun — AI akan otomatis membuat tugas, catatan, atau transaksi"
+                        : "Tambah cepat dengan AI — ketik natural language"}
+                    </p>
+                  </div>
+                  <CommandBar
+                    onAddTask={addTask}
+                    onAddNote={addNote}
+                    onAddTransaction={addTransaction}
+                  />
+                </motion.div>
+              </div>
+            )}
+            <div className="p-6 lg:p-8">
             <AnimatePresence mode="wait">
               {activeTab === "dashboard" && (
                 <DashboardView
@@ -311,6 +343,7 @@ function DashboardShell() {
                 <StackBlitzView key="code" />
               )}
             </AnimatePresence>
+            </div>
           </main>
         </div>
       </div>

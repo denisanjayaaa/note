@@ -27,7 +27,7 @@ import type { Task, Note } from "./data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerPopover } from "@/components/ui/date-picker-popover";
-import { parseNaturalInput } from "@/lib/gemini";
+import { parseNaturalInput } from "@/lib/deepseek";
 
 // ─── Types ───
 
