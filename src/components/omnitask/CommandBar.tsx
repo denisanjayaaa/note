@@ -15,9 +15,14 @@ import {
   CalendarDays,
   X,
   ArrowRight,
+  Trash2,
+  Edit3,
+  Undo2,
 } from "lucide-react";
-import { parseNaturalInput, type ParsedIntent } from "@/lib/deepseek";
+import { parseNaturalInput, type ParsedIntent, type ParsedNote, type ParsedTask, type ParsedTransaction } from "@/lib/deepseek";
 import type { Task } from "./data";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 // ─── Types ───
 
@@ -30,8 +35,6 @@ interface CommandBarProps {
 
 type Status = "idle" | "loading" | "success" | "error";
 
-// ─── Attachment Types ───
-
 type Attachment = {
   type: "image" | "file" | "audio";
   name: string;
@@ -40,30 +43,260 @@ type Attachment = {
 
 // ─── Priority Badge ───
 
-function PriorityBadge({ priority }: { priority: string }) {
-  const styles: Record<string, string> = {
-    high: "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400",
-    medium: "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
-    low: "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
-  };
+const PRIORITY_STYLES: Record<string, string> = {
+  high: "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400",
+  medium: "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+  low: "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
+};
+
+function PrioritySelect({ value, onChange }: { value: string; onChange: (v: "high" | "medium" | "low") => void }) {
   return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${styles[priority] || styles.medium}`}>
-      {priority}
-    </span>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as "high" | "medium" | "low")}
+      className="rounded-md border border-input bg-background px-2 py-1 text-[11px] font-semibold uppercase tracking-wider shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+    >
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
   );
 }
 
-// ─── Parsed Result Preview ───
+// ─── Editable Note Card ───
+
+function EditableNoteCard({
+  note,
+  index,
+  onChange,
+  onDelete,
+}: {
+  note: ParsedNote;
+  index: number;
+  onChange: (i: number, n: ParsedNote) => void;
+  onDelete: (i: number) => void;
+}) {
+  return (
+    <div className="group relative rounded-lg border border-border/50 bg-amber-50/30 p-3 dark:bg-amber-500/5">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <FileText size={13} className="text-amber-500" />
+          <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">Note</span>
+        </div>
+        <button
+          onClick={() => onDelete(index)}
+          className="rounded p-1 text-muted-foreground/40 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+          title="Hapus note"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
+      <div className="space-y-2">
+        <Input
+          value={note.title}
+          onChange={(e) => onChange(index, { ...note, title: e.target.value })}
+          placeholder="Judul note..."
+          className="h-7 border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
+        />
+        <textarea
+          value={note.content}
+          onChange={(e) => onChange(index, { ...note, content: e.target.value })}
+          placeholder="Isi catatan..."
+          rows={2}
+          className="w-full resize-none border-0 bg-transparent px-0 text-xs text-muted-foreground placeholder:text-muted-foreground/40 focus:outline-none"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Editable Task Card ───
+
+function EditableTaskCard({
+  task,
+  index,
+  onChange,
+  onDelete,
+}: {
+  task: ParsedTask;
+  index: number;
+  onChange: (i: number, t: ParsedTask) => void;
+  onDelete: (i: number) => void;
+}) {
+  return (
+    <div className="group relative rounded-lg border border-border/50 bg-sky-50/30 p-3 dark:bg-sky-500/5">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <ListChecks size={13} className="text-sky-500" />
+          <span className="text-[11px] font-semibold text-sky-700 dark:text-sky-400">Task</span>
+        </div>
+        <button
+          onClick={() => onDelete(index)}
+          className="rounded p-1 text-muted-foreground/40 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+          title="Hapus task"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
+      <div className="space-y-2">
+        <Input
+          value={task.title}
+          onChange={(e) => onChange(index, { ...task, title: e.target.value })}
+          placeholder="Judul task..."
+          className="h-7 border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <PrioritySelect
+            value={task.priority}
+            onChange={(p) => onChange(index, { ...task, priority: p })}
+          />
+          <input
+            type="date"
+            value={task.due_date || ""}
+            onChange={(e) => onChange(index, { ...task, due_date: e.target.value || null })}
+            className="rounded-md border border-input bg-background px-2 py-1 text-[11px] shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+          />
+          <select
+            value={task.status}
+            onChange={(e) => onChange(index, { ...task, status: e.target.value as "todo" | "in_progress" })}
+            className="rounded-md border border-input bg-background px-2 py-1 text-[11px] shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+          >
+            <option value="todo">To Do</option>
+            <option value="in_progress">In Progress</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Editable Transaction Card ───
+
+function EditableTransactionCard({
+  tx,
+  index,
+  onChange,
+  onDelete,
+}: {
+  tx: ParsedTransaction;
+  index: number;
+  onChange: (i: number, t: ParsedTransaction) => void;
+  onDelete: (i: number) => void;
+}) {
+  return (
+    <div className="group relative rounded-lg border border-border/50 bg-emerald-50/30 p-3 dark:bg-emerald-500/5">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Wallet size={13} className="text-emerald-500" />
+          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+            {tx.type === "income" ? "Income" : "Expense"}
+          </span>
+        </div>
+        <button
+          onClick={() => onDelete(index)}
+          className="rounded p-1 text-muted-foreground/40 opacity-0 transition-all hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+          title="Hapus transaksi"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <select
+            value={tx.type}
+            onChange={(e) => onChange(index, { ...tx, type: e.target.value as "income" | "expense" })}
+            className="rounded-md border border-input bg-background px-2 py-1 text-[11px] font-medium shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+          >
+            <option value="income">Income</option>
+            <option value="expense">Expense</option>
+          </select>
+          <div className="relative flex-1">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">Rp</span>
+            <input
+              type="number"
+              value={tx.amount}
+              onChange={(e) => onChange(index, { ...tx, amount: parseInt(e.target.value) || 0 })}
+              className="w-full rounded-md border border-input bg-background py-1 pl-7 pr-2 text-[11px] font-medium shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+              min={0}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            value={tx.category}
+            onChange={(e) => onChange(index, { ...tx, category: e.target.value })}
+            placeholder="Kategori (e.g. Food, Salary)"
+            className="h-7 text-[11px]"
+          />
+        </div>
+        <Input
+          value={tx.description}
+          onChange={(e) => onChange(index, { ...tx, description: e.target.value })}
+          placeholder="Deskripsi..."
+          className="h-7 text-[11px]"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Parsed Result Preview (Editable) ───
 
 function ParsedResultPreview({
-  result,
+  initialResult,
   onConfirm,
   onDismiss,
 }: {
-  result: ParsedIntent;
-  onConfirm: () => void;
+  initialResult: ParsedIntent;
+  onConfirm: (editedResult: ParsedIntent) => void;
   onDismiss: () => void;
 }) {
+  // Store editable items in arrays — items can be deleted
+  const [notes, setNotes] = useState<ParsedNote[]>(
+    initialResult.note ? [initialResult.note] : []
+  );
+  const [tasks, setTasks] = useState<ParsedTask[]>(
+    initialResult.task ? [initialResult.task] : []
+  );
+  const [transactions, setTransactions] = useState<ParsedTransaction[]>(
+    initialResult.transaction ? [initialResult.transaction] : []
+  );
+
+  const handleNoteChange = useCallback((index: number, updated: ParsedNote) => {
+    setNotes((prev) => prev.map((n, i) => (i === index ? updated : n)));
+  }, []);
+
+  const handleTaskChange = useCallback((index: number, updated: ParsedTask) => {
+    setTasks((prev) => prev.map((t, i) => (i === index ? updated : t)));
+  }, []);
+
+  const handleTransactionChange = useCallback((index: number, updated: ParsedTransaction) => {
+    setTransactions((prev) => prev.map((t, i) => (i === index ? updated : t)));
+  }, []);
+
+  const handleDeleteNote = useCallback((index: number) => {
+    setNotes((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleDeleteTask = useCallback((index: number) => {
+    setTasks((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleDeleteTransaction = useCallback((index: number) => {
+    setTransactions((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleConfirm = useCallback(() => {
+    onConfirm({
+      note: notes.length > 0 ? notes[0] : null,
+      task: tasks.length > 0 ? tasks[0] : null,
+      transaction: transactions.length > 0 ? transactions[0] : null,
+      summary: initialResult.summary,
+    });
+  }, [notes, tasks, transactions, onConfirm, initialResult.summary]);
+
+  const totalItems = notes.length + tasks.length + transactions.length;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -8, scale: 0.97 }}
@@ -75,7 +308,12 @@ function ParsedResultPreview({
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <div className="flex items-center gap-2">
           <Sparkles size={14} className="text-amber-500" />
-          <span className="text-xs font-semibold">AI Analysis Result</span>
+          <span className="text-xs font-semibold">AI Analysis — Edit before creating</span>
+          {totalItems > 0 && (
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {totalItems} item{totalItems > 1 ? "s" : ""}
+            </span>
+          )}
         </div>
         <button onClick={onDismiss} className="rounded p-1 text-muted-foreground hover:bg-accent">
           <X size={14} />
@@ -84,73 +322,80 @@ function ParsedResultPreview({
 
       {/* Summary */}
       <div className="border-b border-border/50 bg-muted/20 px-4 py-2">
-        <p className="text-xs text-muted-foreground">{result.summary}</p>
+        <p className="text-xs text-muted-foreground">{initialResult.summary}</p>
       </div>
 
-      {/* Items */}
-      <div className="space-y-1.5 p-3">
-        {result.note && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-border/50 bg-amber-50/30 p-2.5 dark:bg-amber-500/5">
-            <FileText size={14} className="mt-0.5 shrink-0 text-amber-500" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium">Note: {result.note.title}</p>
-              {result.note.content && (
-                <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">{result.note.content}</p>
-              )}
-            </div>
-          </div>
-        )}
+      {/* Editable Items */}
+      <div className="space-y-2 p-3">
+        {/* Notes */}
+        <AnimatePresence>
+          {notes.map((note, i) => (
+            <motion.div
+              key={`note-${i}`}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <EditableNoteCard note={note} index={i} onChange={handleNoteChange} onDelete={handleDeleteNote} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
-        {result.task && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-border/50 bg-sky-50/30 p-2.5 dark:bg-sky-500/5">
-            <ListChecks size={14} className="mt-0.5 shrink-0 text-sky-500" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium">Task: {result.task.title}</p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <PriorityBadge priority={result.task.priority} />
-                {result.task.due_date && (
-                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <CalendarDays size={10} />
-                    {new Date(result.task.due_date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Tasks */}
+        <AnimatePresence>
+          {tasks.map((task, i) => (
+            <motion.div
+              key={`task-${i}`}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <EditableTaskCard task={task} index={i} onChange={handleTaskChange} onDelete={handleDeleteTask} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
-        {result.transaction && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-border/50 bg-emerald-50/30 p-2.5 dark:bg-emerald-500/5">
-            <Wallet size={14} className="mt-0.5 shrink-0 text-emerald-500" />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium">
-                {result.transaction.type === "income" ? "Income" : "Expense"}:{" "}
-                Rp {result.transaction.amount.toLocaleString("id-ID")}
-              </p>
-              <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                <span>{result.transaction.category}</span>
-                <span>·</span>
-                <span>{result.transaction.description}</span>
-              </div>
-            </div>
-          </div>
+        {/* Transactions */}
+        <AnimatePresence>
+          {transactions.map((tx, i) => (
+            <motion.div
+              key={`tx-${i}`}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 8, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <EditableTransactionCard tx={tx} index={i} onChange={handleTransactionChange} onDelete={handleDeleteTransaction} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {totalItems === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center gap-2 py-6 text-center"
+          >
+            <Undo2 size={20} className="text-muted-foreground/30" />
+            <p className="text-xs text-muted-foreground/50">Semua item telah dihapus. Tutup atau ketik ulang.</p>
+          </motion.div>
         )}
       </div>
 
       {/* Confirm button */}
-      <div className="border-t border-border px-3 py-2.5">
-        <button
-          onClick={onConfirm}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-xs font-semibold text-background transition-all hover:opacity-90"
-        >
-          <CheckCircle2 size={14} />
-          Confirm & Create All
-        </button>
-      </div>
+      {totalItems > 0 && (
+        <div className="border-t border-border px-3 py-2.5">
+          <button
+            onClick={handleConfirm}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-xs font-semibold text-background transition-all hover:opacity-90 active:scale-[0.98]"
+          >
+            <CheckCircle2 size={14} />
+            Confirm & Create {totalItems} Item{totalItems > 1 ? "s" : ""}
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -195,22 +440,20 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
     }
   }, [input, attachments]);
 
-  const handleConfirm = useCallback(async () => {
-    if (!result) return;
-
+  const handleConfirm = useCallback(async (editedResult: ParsedIntent) => {
     try {
-      if (result.note) {
-        await onAddNote(result.note.title, result.note.content);
+      if (editedResult.note) {
+        await onAddNote(editedResult.note.title, editedResult.note.content);
       }
-      if (result.task) {
-        await onAddTask(result.task.title, result.task.priority, result.task.due_date || undefined);
+      if (editedResult.task) {
+        await onAddTask(editedResult.task.title, editedResult.task.priority, editedResult.task.due_date || undefined);
       }
-      if (result.transaction) {
+      if (editedResult.transaction) {
         await onAddTransaction(
-          result.transaction.type,
-          result.transaction.amount,
-          result.transaction.category,
-          result.transaction.description,
+          editedResult.transaction.type,
+          editedResult.transaction.amount,
+          editedResult.transaction.category,
+          editedResult.transaction.description,
         );
       }
 
@@ -228,7 +471,7 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
       setError("Gagal menyimpan. Coba lagi.");
       setTimeout(() => setStatus("idle"), 3000);
     }
-  }, [result, onAddNote, onAddTask, onAddTransaction]);
+  }, [onAddNote, onAddTask, onAddTransaction]);
 
   const handleDismiss = useCallback(() => {
     setResult(null);
@@ -241,7 +484,7 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         if (result) {
-          handleConfirm();
+          // Don't submit with Enter when preview is showing — user should click confirm
         } else {
           handleSubmit();
         }
@@ -250,7 +493,7 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
         handleDismiss();
       }
     },
-    [result, handleConfirm, handleSubmit, handleDismiss],
+    [result, handleSubmit, handleDismiss],
   );
 
   // File handlers
@@ -282,7 +525,6 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
     setAttachments(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  // Auto-submit after result is dismissed and new input is entered
   const canSubmit = (input.trim() || attachments.length > 0) && status !== "loading";
 
   const attachIcons = {
@@ -294,13 +536,7 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
   return (
     <div className={compact ? "" : "w-full max-w-2xl mx-auto"}>
       {/* Main input bar */}
-      <div
-        className={`relative transition-all ${
-          compact
-            ? ""
-            : "backdrop-blur-sm"
-        }`}
-      >
+      <div className={`relative transition-all ${compact ? "" : "backdrop-blur-sm"}`}>
         <div
           className={`flex items-center gap-2 rounded-2xl border bg-card/95 transition-all ${
             status === "loading"
@@ -312,7 +548,6 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
                   : "border-border/60 hover:border-muted-foreground/30 hover:shadow-md focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-foreground/10 focus-within:shadow-lg"
           } ${compact ? "px-3 py-2 rounded-xl" : "px-5 py-4 shadow-sm"}`}
         >
-          {/* Sparkle icon */}
           <Sparkles
             size={compact ? 16 : 20}
             className={`shrink-0 ${
@@ -324,7 +559,6 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
             }`}
           />
 
-          {/* Input */}
           <input
             ref={inputRef}
             value={input}
@@ -373,7 +607,6 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
             <CheckCircle2 size={compact ? 18 : 20} className="text-emerald-500" />
           ) : (
             <div className="flex items-center gap-1">
-              {/* Attachment buttons */}
               <div className="relative">
                 <button
                   type="button"
@@ -419,14 +652,11 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
                 </AnimatePresence>
               </div>
 
-              {/* Submit button */}
               <button
                 onClick={handleSubmit}
                 disabled={!canSubmit}
                 className={`flex items-center justify-center rounded-xl transition-all ${
-                  compact
-                    ? "h-8 w-8"
-                    : "h-10 w-10"
+                  compact ? "h-8 w-8" : "h-10 w-10"
                 } ${
                   canSubmit
                     ? "bg-foreground text-background shadow-md hover:opacity-90 active:scale-95"
@@ -444,7 +674,7 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
         <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
         <input ref={audioInputRef} type="file" accept="audio/*" className="hidden" onChange={handleAudioSelect} />
 
-        {/* Quick hints below input (non-compact mode) */}
+        {/* Quick hints below input */}
         {!compact && status === "idle" && !result && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -489,11 +719,11 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
         </AnimatePresence>
       </div>
 
-      {/* Parsed results preview */}
+      {/* Parsed results preview — now editable */}
       <AnimatePresence>
         {result && (
           <ParsedResultPreview
-            result={result}
+            initialResult={result}
             onConfirm={handleConfirm}
             onDismiss={handleDismiss}
           />
