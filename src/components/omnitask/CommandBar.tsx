@@ -210,13 +210,13 @@ function EditableTransactionCard({
             <option value="income">Income</option>
             <option value="expense">Expense</option>
           </select>
-          <div className="relative flex-1">
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">Rp</span>
+          <div className="flex items-center rounded-md border border-input bg-background shadow-xs focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]">
+            <span className="flex-none px-2 text-[11px] font-medium text-muted-foreground">Rp</span>
             <input
               type="number"
               value={tx.amount}
               onChange={(e) => onChange(index, { ...tx, amount: parseInt(e.target.value) || 0 })}
-              className="w-full rounded-md border border-input bg-background py-1 pl-7 pr-2 text-[11px] font-medium shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-none"
+              className="min-w-0 flex-1 border-0 bg-transparent py-1 pr-2 text-[11px] font-medium outline-none"
               min={0}
             />
           </div>
