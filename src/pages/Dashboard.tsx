@@ -78,10 +78,10 @@ function DashboardShell() {
     setActiveNote(note);
   }, []);
 
-  // Keyboard shortcut for search
+  // Keyboard shortcut for search: Win+F or Ctrl+F
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
         e.preventDefault();
         setSearchOpen(true);
       }
@@ -208,7 +208,7 @@ function DashboardShell() {
                 <Search size={14} />
                 <span>Search...</span>
                 <kbd className="ml-6 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/60">
-                  ⌘K
+                  {navigator.platform.includes("Mac") ? "⌘F" : "Win+F"}
                 </kbd>
               </button>
             </div>
