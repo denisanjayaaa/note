@@ -19,7 +19,10 @@ const convex = new ConvexReactClient(
   "https://clear-herring-980.convex.cloud"
 );
 
-
+// Inject DeepSeek API key globally for the deepseek client
+if (typeof window !== "undefined") {
+  (window as any).__DEEPSEEK_API_KEY = "sk-d924ca99e2024227b7d11bf84ac0603b";
+}
 
 function RouteSyncer() {
   const location = useLocation();
