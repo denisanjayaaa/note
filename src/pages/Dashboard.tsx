@@ -19,7 +19,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { GlobalSearch } from "@/components/omnitask/GlobalSearch";
 import { DashboardView } from "@/components/omnitask/DashboardView";
 import { NotesView } from "@/components/omnitask/NotesView";
-import { TasksView } from "@/components/omnitask/TasksView";
+import { TasksNotesView } from "@/components/omnitask/TasksNotesView";
 import { CalendarView } from "@/components/omnitask/CalendarView";
 import { FinanceView } from "@/components/omnitask/FinanceView";
 import { CsvEditor } from "@/components/omnitask/CsvEditor";
@@ -39,8 +39,7 @@ import { ThemeToggle } from "@/components/omnitask/ThemeToggle";
 
 const NAV_ITEMS: { id: ActiveTab; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "notes", label: "Notes", icon: FileText },
-  { id: "tasks", label: "Tasks", icon: CheckSquare },
+  { id: "tasks", label: "Tasks & Notes", icon: CheckSquare },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "finance", label: "Finance", icon: Wallet },
   { id: "csv", label: "CSV Editor", icon: FileSpreadsheet },
@@ -50,7 +49,7 @@ const NAV_ITEMS: { id: ActiveTab; label: string; icon: typeof LayoutDashboard }[
 
 function DashboardShell() {
   const { isAuthenticated, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("tasks");
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -255,9 +254,11 @@ function DashboardShell() {
                 />
               )}
               {activeTab === "tasks" && (
-                <TasksView
+                <TasksNotesView
                   key="tasks"
                   tasks={tasks}
+                  notes={notes}
+                  folders={folders}
                   addTask={addTask}
                   updateTaskStatus={updateTaskStatus}
                   deleteTask={deleteTask}
@@ -265,6 +266,11 @@ function DashboardShell() {
                   toggleSubtask={toggleSubtask}
                   updateTags={updateTags}
                   updateTask={updateTask}
+                  addNote={addNote}
+                  togglePinNote={togglePinNote}
+                  deleteNote={deleteNote}
+                  updateNote={updateNote}
+                  onNoteSelect={handleNoteSelect}
                 />
               )}
               {activeTab === "calendar" && (
