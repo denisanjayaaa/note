@@ -848,10 +848,8 @@ export function TasksNotesView({
         const noteId = draggableId.replace("note-", "");
         const note = notes.find((n) => n.id === noteId);
         if (note) {
-          const title = note.content
-            ? `${note.title}: ${note.content}`
-            : note.title;
-          addTask(title.slice(0, 100), "medium", undefined, destination.droppableId);
+          // Short title = note title; full content goes into description
+          addTask(note.title, "medium", undefined, destination.droppableId, note.content);
           deleteNote(noteId);
         }
         return;
@@ -861,9 +859,12 @@ export function TasksNotesView({
       if (!isNote && destIsNotePanel) {
         const task = tasks.find((t) => t.id === draggableId);
         if (task) {
-          const content = task.description || task.due_date
-            ? `Priority: ${task.priority}${task.due_date ? ` | Due: ${task.due_date}` : ""}${task.description ? `\n${task.description}` : ""}`
-            : `Dari task: ${task.title}`;
+          // Short title = task title; full info goes into content
+          const parts: string[] = [];
+          if (task.priority) parts.push(`Priority: ${task.priority}`);
+          if (task.due_date) parts.push(`Due: ${task.due_date}`);
+          if (task.description) parts.push(task.description);
+          const content = parts.length > 0 ? parts.join(" | ") : `From task: ${task.title}`;
           addNote(task.title, content);
           deleteTask(draggableId);
         }
