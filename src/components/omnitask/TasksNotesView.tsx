@@ -181,10 +181,6 @@ function TaskCard({
                 : ""
           }`}
         >
-          <motion.div
-            layout
-            transition={{ type: "spring", stiffness: 350, damping: 30, mass: 0.8 }}
-          >
           <div className="flex items-start gap-2 p-3">
             <div
               {...p.dragHandleProps}
@@ -384,7 +380,6 @@ function TaskCard({
               </button>
             </div>
           </div>
-          </motion.div>
         </div>
       )}
     </Draggable>
@@ -1296,12 +1291,7 @@ export function TasksNotesView({
                   ? sortTasks(tasks.filter((t) => t.status === col.id))
                   : tasks.filter((t) => t.status === col.id);
                 return (
-                  <motion.div
-                    key={col.id}
-                    layout
-                    transition={{ type: "spring", stiffness: 260, damping: 28, mass: 0.6 }}
-                    className="min-w-0"
-                  >
+                  <div key={col.id} className="min-w-0">
                   <Droppable droppableId={col.id}>
                     {(p, sn) => (
                       <div
@@ -1356,7 +1346,7 @@ export function TasksNotesView({
                       </div>
                     )}
                   </Droppable>
-                  </motion.div>
+                  </div>
                 );
               })}
             </div>
