@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 // ─── Types ───
 
 interface CommandBarProps {
-  onAddTask: (title: string, priority: Task["priority"], dueDate?: string, description?: string) => Promise<void>;
+  onAddTask: (title: string, priority: Task["priority"], dueDate?: string, status?: string, description?: string) => Promise<void>;
   onAddNote: (title: string, content: string) => Promise<void>;
   onAddTransaction: (type: "income" | "expense", amount: number, category: string, description: string) => Promise<void>;
   compact?: boolean;
@@ -490,7 +490,7 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
         await onAddNote(note.title, note.content);
       }
       for (const task of confirmTasks) {
-        await onAddTask(task.title, task.priority, task.due_date || undefined, task.description || undefined);
+        await onAddTask(task.title, task.priority, task.due_date || undefined, task.status, task.description || undefined);
       }
       for (const tx of confirmTransactions) {
         await onAddTransaction(tx.type, tx.amount, tx.category, tx.description);
