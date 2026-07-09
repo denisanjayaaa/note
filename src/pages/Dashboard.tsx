@@ -70,6 +70,7 @@ function DashboardShell() {
     updateTask,
     togglePinTask,
     reorderTask,
+    reorderCategory,
     sortTasks,
   } = useTasks();
   const {
@@ -322,6 +323,7 @@ function DashboardShell() {
                   onNoteSelect={handleNoteSelect}
                   togglePinTask={togglePinTask}
                   reorderTask={reorderTask}
+                  reorderCategory={reorderCategory}
                   sortTasks={sortTasks}
                   addCategory={addCategory}
                   updateCategory={updateCategory}

@@ -469,6 +469,15 @@ export function useTasks() {
     setCategories((prev) => prev.filter((c) => c.id !== id));
   }, [categories]);
 
+  const reorderCategory = useCallback(async (fromIndex: number, toIndex: number) => {
+    setCategories((prev) => {
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
+  }, []);
+
   const addTask = useCallback(
     async (
       title: string,
@@ -591,6 +600,7 @@ export function useTasks() {
     addCategory,
     updateCategory,
     deleteCategory,
+    reorderCategory,
     addTask,
     updateTaskStatus,
     deleteTask,

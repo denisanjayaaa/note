@@ -52,6 +52,7 @@ interface TasksNotesViewProps {
   onNoteSelect?: (note: Note) => void;
   togglePinTask?: (taskId: string) => Promise<void>;
   reorderTask?: (taskId: string, newOrder: number) => Promise<void>;
+  reorderCategory?: (fromIndex: number, toIndex: number) => Promise<void>;
   sortTasks?: (tasks: Task[]) => Task[];
   addCategory?: (label: string) => Promise<void>;
   updateCategory?: (id: string, label: string) => Promise<void>;
@@ -747,6 +748,7 @@ export function TasksNotesView({
   onNoteSelect,
   togglePinTask,
   reorderTask,
+  reorderCategory,
   sortTasks,
   addCategory,
   updateCategory,
@@ -940,6 +942,11 @@ export function TasksNotesView({
     deleteCategory?.(id);
   };
 
+  const onCategoryDragEnd = (result: DropResult) => {
+    if (!result.destination || result.source.index === result.destination.index) return;
+    reorderCategory?.(result.source.index, result.destination.index);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1014,55 +1021,84 @@ export function TasksNotesView({
                 </Button>
               </form>
             </div>
-            <div className="space-y-1">
-              {categories.map((cat) => (
-                <div
-                  key={cat.id}
-                  className="flex items-center justify-between rounded-md bg-muted/30 px-3 py-2"
-                >
-                  {editingCategory?.id === cat.id ? (
-                    <form onSubmit={handleEditCategory} className="flex items-center gap-2">
-                      <Input
-                        value={editingCategory.label}
-                        onChange={(e) => setEditingCategory({ ...editingCategory, label: e.target.value })}
-                        className="h-7 w-40 text-xs"
-                        autoFocus
-                      />
-                      <Button type="submit" size="sm" className="h-7 text-xs">Save</Button>
-                      <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditingCategory(null)}>Cancel</Button>
-                    </form>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${cat.dot}`} />
-                        <span className="text-sm font-medium">{cat.label}</span>
-                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {tasks.filter((t) => t.status === cat.id).length}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => setEditingCategory({ id: cat.id, label: cat.label })}
-                          className="rounded p-1 text-muted-foreground/50 hover:bg-accent hover:text-foreground"
-                          title="Rename"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        {categories.length > 1 && (
-                          <button
-                            onClick={() => handleDeleteCategory(cat.id)}
-                            className="rounded p-1 text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
-                            title="Delete column"
+            <DragDropContext onDragEnd={onCategoryDragEnd}>
+              <Droppable droppableId="category-list">
+                {(p, sn) => (
+                  <div
+                    ref={p.innerRef}
+                    {...p.droppableProps}
+                    className={`space-y-1 ${sn.isDraggingOver ? "min-h-[60px]" : ""}`}
+                  >
+                    {categories.map((cat, idx) => (
+                      <Draggable key={cat.id} draggableId={`cat-${cat.id}`} index={idx}>
+                        {(dp, dsn) => (
+                          <div
+                            ref={dp.innerRef}
+                            {...dp.draggableProps}
+                            className={`flex items-center justify-between rounded-md px-3 py-2 transition-all ${
+                              dsn.isDragging
+                                ? "z-50 rounded-lg border-2 border-amber-400 bg-card shadow-xl"
+                                : "bg-muted/30 hover:bg-muted/50"
+                            } ${
+                              editingCategory?.id === cat.id ? "ring-1 ring-ring" : ""
+                            }`}
                           >
-                            <X size={12} />
-                          </button>
+                            {editingCategory?.id === cat.id ? (
+                              <form onSubmit={handleEditCategory} className="flex w-full items-center gap-2 py-1">
+                                <Input
+                                  value={editingCategory.label}
+                                  onChange={(e) => setEditingCategory({ ...editingCategory, label: e.target.value })}
+                                  className="h-7 w-40 text-xs"
+                                  autoFocus
+                                />
+                                <Button type="submit" size="sm" className="h-7 text-xs">Save</Button>
+                                <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditingCategory(null)}>Cancel</Button>
+                              </form>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {/* Drag handle */}
+                                  <div
+                                    {...dp.dragHandleProps}
+                                    className="cursor-grab text-muted-foreground/30 hover:text-muted-foreground/60"
+                                  >
+                                    <GripVertical size={13} />
+                                  </div>
+                                  <span className={`h-2 w-2 shrink-0 rounded-full ${cat.dot}`} />
+                                  <span className="text-sm font-medium truncate">{cat.label}</span>
+                                  <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                    {tasks.filter((t) => t.status === cat.id).length}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    onClick={() => setEditingCategory({ id: cat.id, label: cat.label })}
+                                    className="rounded p-1 text-muted-foreground/50 hover:bg-accent hover:text-foreground"
+                                    title="Rename"
+                                  >
+                                    <Pencil size={12} />
+                                  </button>
+                                  {categories.length > 1 && (
+                                    <button
+                                      onClick={() => handleDeleteCategory(cat.id)}
+                                      className="rounded p-1 text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                                      title="Delete column"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
+                      </Draggable>
+                    ))}
+                    {p.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           </motion.div>
         )}
       </AnimatePresence>
