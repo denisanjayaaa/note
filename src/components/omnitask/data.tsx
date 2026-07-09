@@ -32,11 +32,18 @@ export interface Subtask {
   done: boolean;
 }
 
+export interface TaskCategory {
+  id: string;
+  label: string;
+  color: string;
+  dot: string;
+}
+
 export interface Task {
   id: string;
   title: string;
   description: string;
-  status: "todo" | "in_progress" | "done";
+  status: string;
   priority: "low" | "medium" | "high";
   due_date: string | null;
   parent_id: string | null;
@@ -44,6 +51,8 @@ export interface Task {
   updated_at: string;
   tags: string[];
   subtasks: Subtask[];
+  is_pinned: boolean;
+  order: number;
 }
 
 export interface Habit {
@@ -365,10 +374,12 @@ export function useTasks() {
       priority: "high",
       due_date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
       parent_id: null,
-      tags: [],
+      tags: ["frontend", "design"],
       subtasks: [],
       created_at: "",
       updated_at: "",
+      is_pinned: false,
+      order: 0,
     },
     {
       id: "2",
@@ -382,6 +393,8 @@ export function useTasks() {
       subtasks: [],
       created_at: "",
       updated_at: "",
+      is_pinned: false,
+      order: 1,
     },
     {
       id: "3",
@@ -395,6 +408,8 @@ export function useTasks() {
       subtasks: [],
       created_at: "",
       updated_at: "",
+      is_pinned: false,
+      order: 2,
     },
     {
       id: "4",
@@ -408,34 +423,78 @@ export function useTasks() {
       subtasks: [],
       created_at: "",
       updated_at: "",
+      is_pinned: false,
+      order: 3,
     },
   ]);
   const [loading, setLoading] = useState(false);
+
+  // ─── Categories / Columns ───
+
+  const [categories, setCategories] = useState<TaskCategory[]>([
+    { id: "todo", label: "To Do", color: "border-t-sky-500", dot: "bg-sky-500" },
+    { id: "in_progress", label: "In Progress", color: "border-t-amber-500", dot: "bg-amber-500" },
+    { id: "done", label: "Done", color: "border-t-emerald-500", dot: "bg-emerald-500" },
+  ]);
+
+  const addCategory = useCallback(async (label: string) => {
+    const id = label.toLowerCase().replace(/\s+/g, "_");
+    if (categories.some((c) => c.id === id)) return; // no duplicates
+    const colors = [
+      { color: "border-t-violet-500", dot: "bg-violet-500" },
+      { color: "border-t-rose-500", dot: "bg-rose-500" },
+      { color: "border-t-cyan-500", dot: "bg-cyan-500" },
+      { color: "border-t-orange-500", dot: "bg-orange-500" },
+      { color: "border-t-teal-500", dot: "bg-teal-500" },
+      { color: "border-t-pink-500", dot: "bg-pink-500" },
+    ];
+    const color = colors[categories.length % colors.length];
+    setCategories((prev) => [...prev, { id, label, ...color }]);
+  }, [categories]);
+
+  const updateCategory = useCallback(async (id: string, label: string) => {
+    setCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, label } : c))
+    );
+  }, []);
+
+  const deleteCategory = useCallback(async (id: string) => {
+    // Don't allow deleting the last category
+    if (categories.length <= 1) return;
+    // Move tasks to first available category
+    const firstOther = categories.find((c) => c.id !== id);
+    setTasks((prev) =>
+      prev.map((t) => (t.status === id ? { ...t, status: firstOther?.id || "todo" } : t))
+    );
+    setCategories((prev) => prev.filter((c) => c.id !== id));
+  }, [categories]);
 
   const addTask = useCallback(
     async (
       title: string,
       priority: Task["priority"] = "medium",
       due_date?: string,
-      status: Task["status"] = "todo"
+      status: string = "todo"
     ) => {
       const t: Task = {
         id: Date.now().toString(),
         title,
         description: "",
-      status,
-      priority,
-      due_date: due_date || null,
-      parent_id: null,
-      tags: [],
-      subtasks: [],
-      created_at: "",
-      updated_at: "",
-    };
-    setTasks((p) => [t, ...p]);
-  },
-  []
-);
+        status,
+        priority,
+        due_date: due_date || null,
+        parent_id: null,
+        tags: [],
+        subtasks: [],
+        created_at: "",
+        updated_at: "",
+        is_pinned: false,
+        order: Date.now(),
+      };
+      setTasks((p) => [t, ...p]);
+    },
+    []
+  );
 
   const addSubtask = useCallback(async (taskId: string, title: string) => {
     setTasks((p) =>
@@ -469,9 +528,9 @@ export function useTasks() {
   }, []);
 
   const updateTaskStatus = useCallback(
-    async (id: string, status: Task["status"]) => {
+    async (id: string, status: string) => {
       setTasks((p) =>
-        p.map((t) => (t.id === id ? { ...t, status } : t))
+        p.map((t) => (t.id === id ? { ...t, status, order: Date.now() } : t))
       );
     },
     []
@@ -493,7 +552,56 @@ export function useTasks() {
     []
   );
 
-  return { tasks, loading, addTask, updateTaskStatus, deleteTask, addSubtask, toggleSubtask, updateTags, updateTask };
+  // ─── Pin & Reorder ───
+
+  const togglePinTask = useCallback(async (taskId: string) => {
+    setTasks((p) =>
+      p.map((t) =>
+        t.id === taskId ? { ...t, is_pinned: !t.is_pinned, order: Date.now() } : t
+      )
+    );
+  }, []);
+
+  const reorderTask = useCallback(async (taskId: string, newOrder: number) => {
+    setTasks((p) =>
+      p.map((t) =>
+        t.id === taskId ? { ...t, order: newOrder } : t
+      )
+    );
+  }, []);
+
+  // Sort helper: pinned first → high→medium→low → by order
+  const sortTasks = useCallback((tasks: Task[]): Task[] => {
+    const priorityWeight = { high: 0, medium: 1, low: 2 };
+    return [...tasks].sort((a, b) => {
+      // Pinned first
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+      // By priority
+      const pw = priorityWeight[a.priority] - priorityWeight[b.priority];
+      if (pw !== 0) return pw;
+      // By order
+      return a.order - b.order;
+    });
+  }, []);
+
+  return {
+    tasks,
+    loading,
+    categories,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    addTask,
+    updateTaskStatus,
+    deleteTask,
+    addSubtask,
+    toggleSubtask,
+    updateTags,
+    updateTask,
+    togglePinTask,
+    reorderTask,
+    sortTasks,
+  };
 }
 
 // ─── Transactions Hook ───

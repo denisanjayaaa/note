@@ -55,7 +55,23 @@ function DashboardShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { notes, folders, addNote, togglePinNote, deleteNote, updateNote, addFolder, renameFolder, deleteFolder, moveNoteToFolder } = useNotes();
-  const { tasks, addTask, updateTaskStatus, deleteTask, addSubtask, toggleSubtask, updateTags, updateTask } = useTasks();
+  const {
+    tasks,
+    categories,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    addTask,
+    updateTaskStatus,
+    deleteTask,
+    addSubtask,
+    toggleSubtask,
+    updateTags,
+    updateTask,
+    togglePinTask,
+    reorderTask,
+    sortTasks,
+  } = useTasks();
   const {
     transactions,
     totalIncome,
@@ -291,6 +307,7 @@ function DashboardShell() {
                   tasks={tasks}
                   notes={notes}
                   folders={folders}
+                  categories={categories}
                   addTask={addTask}
                   updateTaskStatus={updateTaskStatus}
                   deleteTask={deleteTask}
@@ -303,6 +320,12 @@ function DashboardShell() {
                   deleteNote={deleteNote}
                   updateNote={updateNote}
                   onNoteSelect={handleNoteSelect}
+                  togglePinTask={togglePinTask}
+                  reorderTask={reorderTask}
+                  sortTasks={sortTasks}
+                  addCategory={addCategory}
+                  updateCategory={updateCategory}
+                  deleteCategory={deleteCategory}
                 />
               )}
               {activeTab === "calendar" && (

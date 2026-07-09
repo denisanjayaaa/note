@@ -16,6 +16,8 @@ import {
   Sparkles,
   Loader2,
   CheckCircle2,
+  Settings2,
+  Pencil,
 } from "lucide-react";
 import {
   DragDropContext,
@@ -23,7 +25,7 @@ import {
   Draggable,
   type DropResult,
 } from "@hello-pangea/dnd";
-import type { Task, Note } from "./data";
+import type { Task, Note, TaskCategory } from "./data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerPopover } from "@/components/ui/date-picker-popover";
@@ -35,8 +37,9 @@ interface TasksNotesViewProps {
   tasks: Task[];
   notes: Note[];
   folders: string[];
-  addTask: (title: string, priority: Task["priority"], dueDate?: string, status?: Task["status"]) => Promise<void>;
-  updateTaskStatus: (id: string, status: Task["status"]) => Promise<void>;
+  categories: TaskCategory[];
+  addTask: (title: string, priority: Task["priority"], dueDate?: string, status?: string) => Promise<void>;
+  updateTaskStatus: (id: string, status: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   addSubtask?: (taskId: string, title: string) => Promise<void>;
   toggleSubtask?: (taskId: string, subtaskId: string) => Promise<void>;
@@ -47,6 +50,12 @@ interface TasksNotesViewProps {
   deleteNote: (id: string) => Promise<void>;
   updateNote?: (id: string, title: string, content: string) => Promise<void>;
   onNoteSelect?: (note: Note) => void;
+  togglePinTask?: (taskId: string) => Promise<void>;
+  reorderTask?: (taskId: string, newOrder: number) => Promise<void>;
+  sortTasks?: (tasks: Task[]) => Task[];
+  addCategory?: (label: string) => Promise<void>;
+  updateCategory?: (id: string, label: string) => Promise<void>;
+  deleteCategory?: (id: string) => Promise<void>;
 }
 
 // ─── Constants ───
@@ -103,6 +112,7 @@ function TaskCard({
   onUpdateTags,
   onRemoveTag,
   onEdit,
+  onTogglePin,
 }: {
   task: Task;
   index: number;
@@ -112,6 +122,7 @@ function TaskCard({
   onUpdateTags?: (taskId: string, tags: string[]) => void;
   onRemoveTag?: (taskId: string, tag: string) => void;
   onEdit?: (task: Task) => void;
+  onTogglePin?: (taskId: string) => void;
 }) {
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showTags, setShowTags] = useState(false);
@@ -247,6 +258,20 @@ function TaskCard({
               </div>
             </div>
             <div className="flex shrink-0 gap-0.5">
+              {/* Pin button */}
+              {onTogglePin && (
+                <button
+                  onClick={() => onTogglePin(task.id)}
+                  className={`mt-0.5 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 ${
+                    task.is_pinned
+                      ? "text-amber-500"
+                      : "text-muted-foreground/40 hover:text-foreground"
+                  }`}
+                  title={task.is_pinned ? "Unpin" : "Pin to top"}
+                >
+                  <Pin size={12} />
+                </button>
+              )}
               {onEdit && (
                 <button
                   onClick={() => onEdit(task)}
@@ -707,6 +732,7 @@ export function TasksNotesView({
   tasks,
   notes,
   folders,
+  categories,
   addTask,
   updateTaskStatus,
   deleteTask,
@@ -719,6 +745,12 @@ export function TasksNotesView({
   deleteNote,
   updateNote,
   onNoteSelect,
+  togglePinTask,
+  reorderTask,
+  sortTasks,
+  addCategory,
+  updateCategory,
+  deleteCategory,
 }: TasksNotesViewProps) {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showNoteForm, setShowNoteForm] = useState(false);
@@ -786,6 +818,8 @@ export function TasksNotesView({
     setShowTaskForm(false);
   };
 
+  const categoryIds = categories.map((c) => c.id);
+
   const onDragEnd = useCallback(
     (result: DropResult) => {
       if (!result.destination) return;
@@ -793,7 +827,7 @@ export function TasksNotesView({
       const { draggableId, destination, source } = result;
       const isNote = draggableId.startsWith("note-");
       const destIsNotePanel = destination.droppableId === "notes";
-      const destIsTaskColumn = ["todo", "in_progress", "done"].includes(destination.droppableId);
+      const destIsTaskColumn = categoryIds.includes(destination.droppableId);
 
       // Note dropped on task column → create task from note, then remove note
       if (isNote && destIsTaskColumn) {
@@ -803,8 +837,7 @@ export function TasksNotesView({
           const title = note.content
             ? `${note.title}: ${note.content}`
             : note.title;
-          addTask(title.slice(0, 100), "medium", undefined, destination.droppableId as Task["status"]);
-          // Remove the note after creating the task
+          addTask(title.slice(0, 100), "medium", undefined, destination.droppableId);
           deleteNote(noteId);
         }
         return;
@@ -818,22 +851,37 @@ export function TasksNotesView({
             ? `Priority: ${task.priority}${task.due_date ? ` | Due: ${task.due_date}` : ""}${task.description ? `\n${task.description}` : ""}`
             : `Dari task: ${task.title}`;
           addNote(task.title, content);
-          // Remove the task after creating the note
           deleteTask(draggableId);
         }
         return;
       }
 
-      // Task dropped on task column → update status (existing)
+      // Task dropped on task column → update status and reorder
       if (!isNote && destIsTaskColumn) {
-        updateTaskStatus(draggableId, destination.droppableId as Task["status"]);
+        const sameColumn = source.droppableId === destination.droppableId;
+        if (sameColumn) {
+          // Reorder within same column: update order based on position
+          const itemsInCol = tasks
+            .filter((t) => t.status === destination.droppableId)
+            .sort((a, b) => a.order - b.order);
+          const movedTask = tasks.find((t) => t.id === draggableId);
+          if (movedTask) {
+            const withoutMoved = itemsInCol.filter((t) => t.id !== draggableId);
+            withoutMoved.splice(destination.index, 0, movedTask);
+            withoutMoved.forEach((t, i) => {
+              reorderTask?.(t.id, i);
+            });
+          }
+        } else {
+          updateTaskStatus(draggableId, destination.droppableId);
+        }
         return;
       }
 
-      // Note dropped on notes panel → ignore (no reorder for now)
+      // Note dropped on notes panel → ignore
       if (isNote && destIsNotePanel) return;
     },
-    [updateTaskStatus, notes, tasks, addTask, addNote]
+    [updateTaskStatus, reorderTask, notes, tasks, addTask, addNote, categoryIds, deleteNote, deleteTask]
   );
 
   const handleUpdateTags = useCallback(
@@ -867,14 +915,30 @@ export function TasksNotesView({
     setShowNoteForm(false);
   };
 
-  const columns = [
-    { id: "todo" as const, label: "To Do", color: "border-t-sky-500", dot: "bg-sky-500" },
-    { id: "in_progress" as const, label: "In Progress", color: "border-t-amber-500", dot: "bg-amber-500" },
-    { id: "done" as const, label: "Done", color: "border-t-emerald-500", dot: "bg-emerald-500" },
-  ];
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [editingCategory, setEditingCategory] = useState<{ id: string; label: string } | null>(null);
 
-  const activeTasks = tasks.filter((t) => t.status !== "done");
-  const doneCount = tasks.filter((t) => t.status === "done").length;
+  const activeTasks = tasks.filter((t) => t.status !== (categories.find((c) => c.label === "Done")?.id || "done"));
+  const doneCount = tasks.filter((t) => t.status === (categories.find((c) => c.label === "Done")?.id || "done")).length;
+
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    addCategory?.(newCategoryName.trim());
+    setNewCategoryName("");
+  };
+
+  const handleEditCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory || !editingCategory.label.trim()) return;
+    updateCategory?.(editingCategory.id, editingCategory.label.trim());
+    setEditingCategory(null);
+  };
+
+  const handleDeleteCategory = (id: string) => {
+    deleteCategory?.(id);
+  };
 
   return (
     <motion.div
@@ -895,7 +959,17 @@ export function TasksNotesView({
             {notes.length > 0 && ` · ${notes.length} note${notes.length !== 1 ? "s" : ""}`}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => { setShowCategoryManager(!showCategoryManager); }}
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            title="Manage categories"
+          >
+            <Settings2 size={13} />
+            {showCategoryManager ? "Done" : "Columns"}
+          </Button>
           <Button
             onClick={() => { setShowTaskForm(!showTaskForm); setShowNoteForm(false); }}
             size="sm"
@@ -916,6 +990,82 @@ export function TasksNotesView({
           </Button>
         </div>
       </div>
+
+      {/* Category Manager */}
+      <AnimatePresence>
+        {showCategoryManager && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4 overflow-hidden rounded-lg border border-border bg-card p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold">Manage Columns</h4>
+              <form onSubmit={handleAddCategory} className="flex items-center gap-1.5">
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="New column name..."
+                  className="h-7 w-40 text-xs"
+                />
+                <Button type="submit" size="sm" disabled={!newCategoryName.trim()} className="h-7 text-xs">
+                  <Plus size={12} /> Add
+                </Button>
+              </form>
+            </div>
+            <div className="space-y-1">
+              {categories.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="flex items-center justify-between rounded-md bg-muted/30 px-3 py-2"
+                >
+                  {editingCategory?.id === cat.id ? (
+                    <form onSubmit={handleEditCategory} className="flex items-center gap-2">
+                      <Input
+                        value={editingCategory.label}
+                        onChange={(e) => setEditingCategory({ ...editingCategory, label: e.target.value })}
+                        className="h-7 w-40 text-xs"
+                        autoFocus
+                      />
+                      <Button type="submit" size="sm" className="h-7 text-xs">Save</Button>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditingCategory(null)}>Cancel</Button>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2 w-2 rounded-full ${cat.dot}`} />
+                        <span className="text-sm font-medium">{cat.label}</span>
+                        <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {tasks.filter((t) => t.status === cat.id).length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setEditingCategory({ id: cat.id, label: cat.label })}
+                          className="rounded p-1 text-muted-foreground/50 hover:bg-accent hover:text-foreground"
+                          title="Rename"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                        {categories.length > 1 && (
+                          <button
+                            onClick={() => handleDeleteCategory(cat.id)}
+                            className="rounded p-1 text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive"
+                            title="Delete column"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* AI Smart Add */}
       <form onSubmit={handleSmartAdd} className="relative mb-4">
@@ -1038,9 +1188,16 @@ export function TasksNotesView({
         <div className="flex flex-col gap-4 lg:flex-row">
           {/* Left: Kanban Board */}
           <div className="min-w-0 flex-1">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              {columns.map((col) => {
-                const items = tasks.filter((t) => t.status === col.id);
+            <div
+              className="grid grid-cols-1 gap-3"
+              style={{
+                gridTemplateColumns: `repeat(${Math.min(categories.length, 4)}, minmax(0, 1fr))`,
+              }}
+            >
+              {categories.map((col) => {
+                const items = sortTasks
+                  ? sortTasks(tasks.filter((t) => t.status === col.id))
+                  : tasks.filter((t) => t.status === col.id);
                 return (
                   <Droppable key={col.id} droppableId={col.id}>
                     {(p, sn) => (
@@ -1072,6 +1229,7 @@ export function TasksNotesView({
                               onUpdateTags={handleUpdateTags}
                               onRemoveTag={handleRemoveTag}
                               onEdit={updateTask ? setEditingTask : undefined}
+                              onTogglePin={togglePinTask}
                             />
                           ))}
                           {p.placeholder}
