@@ -634,6 +634,7 @@ function NoteCard({
   onDelete: () => void;
   onNoteSelect?: (note: Note) => void;
 }) {
+  const [expandedNote, setExpandedNote] = useState(false);
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") onCancelEdit();
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSaveEdit();
@@ -702,12 +703,18 @@ function NoteCard({
             </div>
             <div className="flex-1 min-w-0">
               <button
-                onClick={() => { onStartEdit(); onNoteSelect?.(note); }}
+                onClick={() => setExpandedNote(!expandedNote)}
                 className="w-full text-left"
               >
                 <p className="text-sm font-medium leading-tight truncate">{note.title}</p>
                 {note.content && (
-                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{note.content}</p>
+                  <p
+                    className={`mt-0.5 text-xs text-muted-foreground cursor-pointer transition-all ${
+                      expandedNote ? "" : "line-clamp-1"
+                    }`}
+                  >
+                    {note.content}
+                  </p>
                 )}
               </button>
               {note.folder_path && note.folder_path !== "/" && (
