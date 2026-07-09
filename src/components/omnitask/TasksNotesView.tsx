@@ -181,6 +181,10 @@ function TaskCard({
                 : ""
           }`}
         >
+          <motion.div
+            layout
+            transition={{ type: "spring", stiffness: 350, damping: 30, mass: 0.8 }}
+          >
           <div className="flex items-start gap-2 p-3">
             <div
               {...p.dragHandleProps}
@@ -380,6 +384,7 @@ function TaskCard({
               </button>
             </div>
           </div>
+          </motion.div>
         </div>
       )}
     </Draggable>
@@ -1294,9 +1299,8 @@ export function TasksNotesView({
                   <motion.div
                     key={col.id}
                     layout
-                    transition={{ type: "tween", ease: [0.25, 0.1, 0.25, 1], duration: 0.35 }}
-                    className="min-w-0 overflow-hidden"
-                    style={{ willChange: "transform" }}
+                    transition={{ type: "spring", stiffness: 260, damping: 28, mass: 0.6 }}
+                    className="min-w-0"
                   >
                   <Droppable droppableId={col.id}>
                     {(p, sn) => (
