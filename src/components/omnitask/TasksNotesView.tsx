@@ -127,7 +127,6 @@ function TaskCard({
   onEdit?: (task: Task) => void;
   onTogglePin?: (taskId: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
@@ -188,35 +187,7 @@ function TaskCard({
               <GripVertical size={14} />
             </div>
             <div className="flex-1 min-w-0">
-              {/* Clickable title — click to expand/collapse description */}
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="w-full text-left"
-              >
-                <p className="text-sm font-medium">{task.title}</p>
-              </button>
-
-              {/* Expanded: show description inline */}
-              <AnimatePresence initial={false}>
-                {expanded && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    {task.description ? (
-                      <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                        {task.description}
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-xs italic text-muted-foreground/40">
-                        No description
-                      </p>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <p className="text-sm font-medium">{task.title}</p>
             </div>
             <div className="flex shrink-0 gap-0.5">
               {/* Pin button — with stopPropagation to prevent drag trigger. Always visible when pinned */}
