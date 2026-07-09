@@ -248,7 +248,7 @@ function ParsedResultPreview({
   onDismiss,
 }: {
   initialResult: ParsedIntent;
-  onConfirm: (editedResult: ParsedIntent) => void;
+  onConfirm: (notes: ParsedNote[], tasks: ParsedTask[], transactions: ParsedTransaction[]) => void;
   onDismiss: () => void;
 }) {
   // Store editable items in arrays — items can be deleted
@@ -287,13 +287,20 @@ function ParsedResultPreview({
   }, []);
 
   const handleConfirm = useCallback(() => {
-    onConfirm({
-      note: notes.length > 0 ? notes[0] : null,
-      task: tasks.length > 0 ? tasks[0] : null,
-      transaction: transactions.length > 0 ? transactions[0] : null,
-      summary: initialResult.summary,
-    });
-  }, [notes, tasks, transactions, onConfirm, initialResult.summary]);
+    onConfirm(notes, tasks, transactions);
+  }, [notes, tasks, transactions, onConfirm]);
+
+  const handleAddNote = useCallback(() => {
+    setNotes((prev) => [...prev, { title: "", content: "" }]);
+  }, []);
+
+  const handleAddTask = useCallback(() => {
+    setTasks((prev) => [...prev, { title: "", priority: "medium", due_date: null, status: "todo" }]);
+  }, []);
+
+  const handleAddTransaction = useCallback(() => {
+    setTransactions((prev) => [...prev, { type: "expense", amount: 0, category: "Other", description: "" }]);
+  }, []);
 
   const totalItems = notes.length + tasks.length + transactions.length;
 
@@ -323,6 +330,32 @@ function ParsedResultPreview({
       {/* Summary */}
       <div className="border-b border-border/50 bg-muted/20 px-4 py-2">
         <p className="text-xs text-muted-foreground">{initialResult.summary}</p>
+      </div>
+
+      {/* + Add toolbar */}
+      <div className="flex items-center gap-1.5 border-b border-border/30 px-3 py-2">
+        <span className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mr-1">Add</span>
+        <button
+          onClick={handleAddNote}
+          className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 transition-all hover:bg-amber-100 active:scale-95 dark:bg-amber-500/10 dark:text-amber-400 dark:hover:bg-amber-500/20"
+        >
+          <Plus size={11} />
+          Note
+        </button>
+        <button
+          onClick={handleAddTask}
+          className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-700 transition-all hover:bg-sky-100 active:scale-95 dark:bg-sky-500/10 dark:text-sky-400 dark:hover:bg-sky-500/20"
+        >
+          <Plus size={11} />
+          Task
+        </button>
+        <button
+          onClick={handleAddTransaction}
+          className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 transition-all hover:bg-emerald-100 active:scale-95 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
+        >
+          <Plus size={11} />
+          Expense
+        </button>
       </div>
 
       {/* Editable Items */}
@@ -440,21 +473,20 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
     }
   }, [input, attachments]);
 
-  const handleConfirm = useCallback(async (editedResult: ParsedIntent) => {
+  const handleConfirm = useCallback(async (
+    confirmNotes: ParsedNote[],
+    confirmTasks: ParsedTask[],
+    confirmTransactions: ParsedTransaction[],
+  ) => {
     try {
-      if (editedResult.note) {
-        await onAddNote(editedResult.note.title, editedResult.note.content);
+      for (const note of confirmNotes) {
+        await onAddNote(note.title, note.content);
       }
-      if (editedResult.task) {
-        await onAddTask(editedResult.task.title, editedResult.task.priority, editedResult.task.due_date || undefined);
+      for (const task of confirmTasks) {
+        await onAddTask(task.title, task.priority, task.due_date || undefined);
       }
-      if (editedResult.transaction) {
-        await onAddTransaction(
-          editedResult.transaction.type,
-          editedResult.transaction.amount,
-          editedResult.transaction.category,
-          editedResult.transaction.description,
-        );
+      for (const tx of confirmTransactions) {
+        await onAddTransaction(tx.type, tx.amount, tx.category, tx.description);
       }
 
       // Reset
