@@ -181,10 +181,6 @@ function TaskCard({
                 : ""
           }`}
         >
-          <motion.div
-            layout
-            transition={{ type: "spring", stiffness: 350, damping: 30, mass: 0.8 }}
-          >
           <div className="flex items-start gap-2 p-3">
             <div
               {...p.dragHandleProps}
@@ -384,7 +380,6 @@ function TaskCard({
               </button>
             </div>
           </div>
-          </motion.div>
         </div>
       )}
     </Draggable>
