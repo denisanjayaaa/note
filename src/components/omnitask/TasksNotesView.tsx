@@ -116,6 +116,7 @@ function TaskCard({
   onRemoveTag,
   onEdit,
   onTogglePin,
+  onUpdatePriority,
 }: {
   task: Task;
   index: number;
@@ -126,6 +127,7 @@ function TaskCard({
   onRemoveTag?: (taskId: string, tag: string) => void;
   onEdit?: (task: Task) => void;
   onTogglePin?: (taskId: string) => void;
+  onUpdatePriority?: (taskId: string, priority: Task["priority"]) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
@@ -222,19 +224,26 @@ function TaskCard({
                 </div>
               )}
 
-              {/* Priority & Due Date */}
+              {/* Priority (clickable) & Due Date */}
               <div className="mt-1.5 flex items-center gap-2">
-                <span
-                  className={`rounded px-1 py-0.5 text-[10px] font-semibold leading-none ${
+                <button
+                  onClick={() => {
+                    const cycle: Task["priority"][] = ["high", "medium", "low"];
+                    const idx = cycle.indexOf(task.priority);
+                    const next = cycle[(idx + 1) % cycle.length];
+                    onUpdatePriority?.(task.id, next);
+                  }}
+                  className={`rounded px-1 py-0.5 text-[10px] font-semibold leading-none transition-opacity hover:opacity-80 ${
                     task.priority === "high"
                       ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
                       : task.priority === "medium"
                         ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
                         : "bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400"
                   }`}
+                  title="Click to cycle: High → Medium → Low"
                 >
                   {PRIORITY_LABELS[task.priority]}
-                </span>
+                </button>
                 {task.due_date && (
                   <span
                     className={`text-[10px] ${
@@ -903,6 +912,13 @@ export function TasksNotesView({
     [updateTask]
   );
 
+  const handleUpdatePriority = useCallback(
+    (taskId: string, priority: Task["priority"]) => {
+      updateTask?.(taskId, { priority });
+    },
+    [updateTask]
+  );
+
   // Note handlers
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1313,6 +1329,7 @@ export function TasksNotesView({
                               onRemoveTag={handleRemoveTag}
                               onEdit={updateTask ? setEditingTask : undefined}
                               onTogglePin={togglePinTask}
+                              onUpdatePriority={handleUpdatePriority}
                             />
                           ))}
                           {p.placeholder}
