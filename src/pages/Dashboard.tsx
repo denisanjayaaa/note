@@ -60,6 +60,7 @@ function DashboardShell() {
     categories,
     addCategory,
     updateCategory,
+    updateCategoryColor,
     deleteCategory,
     addTask,
     updateTaskStatus,
@@ -327,6 +328,7 @@ function DashboardShell() {
                   sortTasks={sortTasks}
                   addCategory={addCategory}
                   updateCategory={updateCategory}
+                  updateCategoryColor={updateCategoryColor}
                   deleteCategory={deleteCategory}
                 />
               )}

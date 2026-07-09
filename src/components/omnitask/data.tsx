@@ -362,6 +362,22 @@ export function useNotes() {
   return { notes, loading, folders, addNote, togglePinNote, deleteNote, updateNote, addFolder, renameFolder, deleteFolder, moveNoteToFolder };
 }
 
+// ─── Category Colors ───
+
+export const CATEGORY_COLORS = [
+  { color: "border-t-sky-500", dot: "bg-sky-500" },
+  { color: "border-t-amber-500", dot: "bg-amber-500" },
+  { color: "border-t-emerald-500", dot: "bg-emerald-500" },
+  { color: "border-t-violet-500", dot: "bg-violet-500" },
+  { color: "border-t-rose-500", dot: "bg-rose-500" },
+  { color: "border-t-cyan-500", dot: "bg-cyan-500" },
+  { color: "border-t-orange-500", dot: "bg-orange-500" },
+  { color: "border-t-teal-500", dot: "bg-teal-500" },
+  { color: "border-t-pink-500", dot: "bg-pink-500" },
+  { color: "border-t-lime-500", dot: "bg-lime-500" },
+  { color: "border-t-indigo-500", dot: "bg-indigo-500" },
+];
+
 // ─── Tasks Hook ───
 
 export function useTasks() {
@@ -437,20 +453,20 @@ export function useTasks() {
     { id: "done", label: "Done", color: "border-t-emerald-500", dot: "bg-emerald-500" },
   ]);
 
-  const addCategory = useCallback(async (label: string) => {
+  const addCategory = useCallback(async (label: string, colorIndex?: number) => {
     const id = label.toLowerCase().replace(/\s+/g, "_");
     if (categories.some((c) => c.id === id)) return; // no duplicates
-    const colors = [
-      { color: "border-t-violet-500", dot: "bg-violet-500" },
-      { color: "border-t-rose-500", dot: "bg-rose-500" },
-      { color: "border-t-cyan-500", dot: "bg-cyan-500" },
-      { color: "border-t-orange-500", dot: "bg-orange-500" },
-      { color: "border-t-teal-500", dot: "bg-teal-500" },
-      { color: "border-t-pink-500", dot: "bg-pink-500" },
-    ];
-    const color = colors[categories.length % colors.length];
-    setCategories((prev) => [...prev, { id, label, ...color }]);
+    const ci = colorIndex ?? categories.length % CATEGORY_COLORS.length;
+    const picked = CATEGORY_COLORS[ci % CATEGORY_COLORS.length];
+    setCategories((prev) => [...prev, { id, label, ...picked }]);
   }, [categories]);
+
+  const updateCategoryColor = useCallback(async (id: string, colorIndex: number) => {
+    const picked = CATEGORY_COLORS[colorIndex % CATEGORY_COLORS.length];
+    setCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...picked } : c))
+    );
+  }, []);
 
   const updateCategory = useCallback(async (id: string, label: string) => {
     setCategories((prev) =>
@@ -599,6 +615,7 @@ export function useTasks() {
     categories,
     addCategory,
     updateCategory,
+    updateCategoryColor,
     deleteCategory,
     reorderCategory,
     addTask,

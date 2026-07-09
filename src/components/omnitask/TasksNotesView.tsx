@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -26,6 +26,7 @@ import {
   type DropResult,
 } from "@hello-pangea/dnd";
 import type { Task, Note, TaskCategory } from "./data";
+import { CATEGORY_COLORS } from "./data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePickerPopover } from "@/components/ui/date-picker-popover";
@@ -54,8 +55,9 @@ interface TasksNotesViewProps {
   reorderTask?: (taskId: string, newOrder: number) => Promise<void>;
   reorderCategory?: (fromIndex: number, toIndex: number) => Promise<void>;
   sortTasks?: (tasks: Task[]) => Task[];
-  addCategory?: (label: string) => Promise<void>;
+  addCategory?: (label: string, colorIndex?: number) => Promise<void>;
   updateCategory?: (id: string, label: string) => Promise<void>;
+  updateCategoryColor?: (id: string, colorIndex: number) => Promise<void>;
   deleteCategory?: (id: string) => Promise<void>;
 }
 
@@ -259,9 +261,10 @@ function TaskCard({
               </div>
             </div>
             <div className="flex shrink-0 gap-0.5">
-              {/* Pin button */}
+              {/* Pin button — with stopPropagation to prevent drag trigger */}
               {onTogglePin && (
                 <button
+                  onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => onTogglePin(task.id)}
                   className={`mt-0.5 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 ${
                     task.is_pinned
@@ -752,6 +755,7 @@ export function TasksNotesView({
   sortTasks,
   addCategory,
   updateCategory,
+  updateCategoryColor,
   deleteCategory,
 }: TasksNotesViewProps) {
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -919,7 +923,9 @@ export function TasksNotesView({
 
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState(0);
   const [editingCategory, setEditingCategory] = useState<{ id: string; label: string } | null>(null);
+  const [editingColor, setEditingColor] = useState<number | null>(null);
 
   const activeTasks = tasks.filter((t) => t.status !== (categories.find((c) => c.label === "Done")?.id || "done"));
   const doneCount = tasks.filter((t) => t.status === (categories.find((c) => c.label === "Done")?.id || "done")).length;
@@ -927,8 +933,9 @@ export function TasksNotesView({
   const handleAddCategory = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
-    addCategory?.(newCategoryName.trim());
+    addCategory?.(newCategoryName.trim(), newCategoryColor);
     setNewCategoryName("");
+    setNewCategoryColor(0);
   };
 
   const handleEditCategory = (e: React.FormEvent) => {
@@ -945,6 +952,30 @@ export function TasksNotesView({
   const onCategoryDragEnd = (result: DropResult) => {
     if (!result.destination || result.source.index === result.destination.index) return;
     reorderCategory?.(result.source.index, result.destination.index);
+  };
+
+  // ─── Native HTML5 column drag for kanban board reorder ───
+  const dragColIndex = useRef<number | null>(null);
+
+  const handleColDragStart = (idx: number) => (e: React.DragEvent) => {
+    dragColIndex.current = idx;
+    e.dataTransfer.effectAllowed = "move";
+    (e.currentTarget as HTMLElement).classList.add("opacity-40");
+  };
+
+  const handleColDragOver = (targetIdx: number) => (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const from = dragColIndex.current;
+    if (from === null || from === targetIdx) return;
+    // Reorder categories visually
+    reorderCategory?.(from, targetIdx);
+    dragColIndex.current = targetIdx;
+  };
+
+  const handleColDragEnd = () => (e: React.DragEvent) => {
+    (e.currentTarget as HTMLElement).classList.remove("opacity-40");
+    dragColIndex.current = null;
   };
 
   return (
@@ -1014,8 +1045,23 @@ export function TasksNotesView({
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   placeholder="New column name..."
-                  className="h-7 w-40 text-xs"
+                  className="h-7 w-32 text-xs"
                 />
+                <div className="flex -space-x-0.5">
+                  {CATEGORY_COLORS.map((c, ci) => (
+                    <button
+                      key={ci}
+                      type="button"
+                      onClick={() => setNewCategoryColor(ci)}
+                      className={`h-4 w-4 rounded-full border-2 transition-all ${
+                        ci === newCategoryColor
+                          ? "border-foreground scale-125"
+                          : "border-transparent hover:scale-110"
+                      } ${c.dot}`}
+                      title={`Color ${ci + 1}`}
+                    />
+                  ))}
+                </div>
                 <Button type="submit" size="sm" disabled={!newCategoryName.trim()} className="h-7 text-xs">
                   <Plus size={12} /> Add
                 </Button>
@@ -1230,7 +1276,7 @@ export function TasksNotesView({
                 gridTemplateColumns: `repeat(${Math.min(categories.length, 4)}, minmax(0, 1fr))`,
               }}
             >
-              {categories.map((col) => {
+              {categories.map((col, colIdx) => {
                 const items = sortTasks
                   ? sortTasks(tasks.filter((t) => t.status === col.id))
                   : tasks.filter((t) => t.status === col.id);
@@ -1244,11 +1290,19 @@ export function TasksNotesView({
                           col.color
                         } ${sn.isDraggingOver ? "border-accent bg-accent/30" : "border-border"}`}
                       >
-                        <div className="flex items-center justify-between px-3 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <span className={`h-2 w-2 rounded-full ${col.dot}`} />
-                            <h3 className="text-sm font-semibold">{col.label}</h3>
-                            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        {/* Draggable column header */}
+                        <div
+                          draggable
+                          onDragStart={handleColDragStart(colIdx)}
+                          onDragOver={handleColDragOver(colIdx)}
+                          onDragEnd={handleColDragEnd()}
+                          className="flex cursor-grab items-center justify-between rounded-t-md px-3 py-2.5 active:cursor-grabbing"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <GripVertical size={12} className="shrink-0 text-muted-foreground/30" />
+                            <span className={`h-2 w-2 shrink-0 rounded-full ${col.dot}`} />
+                            <h3 className="text-sm font-semibold truncate">{col.label}</h3>
+                            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                               {items.length}
                             </span>
                           </div>
