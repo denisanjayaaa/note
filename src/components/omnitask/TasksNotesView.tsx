@@ -127,6 +127,7 @@ function TaskCard({
   onEdit?: (task: Task) => void;
   onTogglePin?: (taskId: string) => void;
 }) {
+  const [showDetail, setShowDetail] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
@@ -187,7 +188,46 @@ function TaskCard({
               <GripVertical size={14} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">{task.title}</p>
+              <button
+                onClick={() => setShowDetail(true)}
+                className="w-full text-left"
+              >
+                <p className="text-sm font-medium truncate">{task.title}</p>
+              </button>
+
+              {/* Detail popup */}
+              {showDetail && (
+                <>
+                  <div
+                    className="fixed inset-0 z-[60]"
+                    onClick={() => setShowDetail(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className="absolute left-0 right-0 top-full z-[61] mt-1.5 rounded-lg border border-border bg-card p-3 shadow-xl"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="text-sm font-semibold leading-snug">{task.title}</h4>
+                      <button
+                        onClick={() => setShowDetail(false)}
+                        className="shrink-0 rounded p-0.5 text-muted-foreground/40 hover:text-foreground"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                    {task.description ? (
+                      <p className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        {task.description}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-xs italic text-muted-foreground/40">
+                        No description
+                      </p>
+                    )}
+                  </motion.div>
+                </>
+              )}
             </div>
             <div className="flex shrink-0 gap-0.5">
               {/* Pin button — with stopPropagation to prevent drag trigger. Always visible when pinned */}
