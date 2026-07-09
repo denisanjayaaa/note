@@ -168,8 +168,16 @@ function TaskCard({
           ref={p.innerRef}
           {...p.draggableProps}
           className={`group relative rounded-lg border border-border bg-card transition-all ${
-            sn.isDragging ? "z-50 shadow-lg" : ""
-          } ${isOverdue ? "border-l-2 border-l-destructive" : ""}`}
+            sn.isDragging
+              ? "z-50 shadow-2xl ring-2 ring-amber-400/30 scale-[1.02] rotate-[1deg]"
+              : "hover:shadow-sm"
+          } ${
+            task.is_pinned
+              ? "border-l-[3px] border-l-red-500"
+              : isOverdue
+                ? "border-l-2 border-l-destructive"
+                : ""
+          }`}
         >
           <div className="flex items-start gap-2 p-3">
             <div
