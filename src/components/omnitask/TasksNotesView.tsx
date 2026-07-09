@@ -1294,8 +1294,9 @@ export function TasksNotesView({
                   <motion.div
                     key={col.id}
                     layout
-                    transition={{ type: "spring", stiffness: 260, damping: 28, mass: 0.6 }}
-                    className="min-w-0"
+                    transition={{ type: "tween", ease: [0.25, 0.1, 0.25, 1], duration: 0.35 }}
+                    className="min-w-0 overflow-hidden"
+                    style={{ willChange: "transform" }}
                   >
                   <Droppable droppableId={col.id}>
                     {(p, sn) => (
