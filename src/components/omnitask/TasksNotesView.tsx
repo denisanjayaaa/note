@@ -207,6 +207,49 @@ function TaskCard({
                   {task.description}
                 </p>
               ) : null}
+
+              {/* Tags */}
+              {task.tags && task.tags.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {task.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Priority & Due Date */}
+              <div className="mt-1.5 flex items-center gap-2">
+                <span
+                  className={`rounded px-1 py-0.5 text-[10px] font-semibold leading-none ${
+                    task.priority === "high"
+                      ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+                      : task.priority === "medium"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+                        : "bg-gray-100 text-gray-600 dark:bg-gray-500/20 dark:text-gray-400"
+                  }`}
+                >
+                  {PRIORITY_LABELS[task.priority]}
+                </span>
+                {task.due_date && (
+                  <span
+                    className={`text-[10px] ${
+                      isOverdue
+                        ? "font-semibold text-red-500"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {new Date(task.due_date + "T00:00:00").toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex shrink-0 gap-0.5">
               {/* Pin button — with stopPropagation to prevent drag trigger. Always visible when pinned */}
