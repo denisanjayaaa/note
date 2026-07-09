@@ -176,9 +176,7 @@ function TaskCard({
           } ${
             task.is_pinned
               ? "border-l-[3px] border-l-red-500"
-              : isOverdue
-                ? "border-l-2 border-l-destructive"
-                : ""
+              : ""
           }`}
         >
           <div className="flex items-start gap-2 p-3">
