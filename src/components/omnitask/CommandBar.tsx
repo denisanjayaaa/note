@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 // ─── Types ───
 
 interface CommandBarProps {
-  onAddTask: (title: string, priority: Task["priority"], dueDate?: string) => Promise<void>;
+  onAddTask: (title: string, priority: Task["priority"], dueDate?: string, description?: string) => Promise<void>;
   onAddNote: (title: string, content: string) => Promise<void>;
   onAddTransaction: (type: "income" | "expense", amount: number, category: string, description: string) => Promise<void>;
   compact?: boolean;
@@ -144,6 +144,13 @@ function EditableTaskCard({
           onChange={(e) => onChange(index, { ...task, title: e.target.value })}
           placeholder="Judul task..."
           className="h-7 border-0 bg-transparent px-0 text-sm font-medium shadow-none focus-visible:ring-0"
+        />
+        <textarea
+          value={task.description}
+          onChange={(e) => onChange(index, { ...task, description: e.target.value })}
+          placeholder="Deskripsi lengkap..."
+          rows={2}
+          className="w-full resize-none border-0 bg-transparent px-0 text-xs text-muted-foreground placeholder:text-muted-foreground/40 focus:outline-none"
         />
         <div className="flex flex-wrap items-center gap-2">
           <PrioritySelect
@@ -295,7 +302,7 @@ function ParsedResultPreview({
   }, []);
 
   const handleAddTask = useCallback(() => {
-    setTasks((prev) => [...prev, { title: "", priority: "medium", due_date: null, status: "todo" }]);
+    setTasks((prev) => [...prev, { title: "", description: "", priority: "medium", due_date: null, status: "todo" }]);
   }, []);
 
   const handleAddTransaction = useCallback(() => {
@@ -483,7 +490,7 @@ export function CommandBar({ onAddTask, onAddNote, onAddTransaction, compact }: 
         await onAddNote(note.title, note.content);
       }
       for (const task of confirmTasks) {
-        await onAddTask(task.title, task.priority, task.due_date || undefined);
+        await onAddTask(task.title, task.priority, task.due_date || undefined, task.description || undefined);
       }
       for (const tx of confirmTransactions) {
         await onAddTransaction(tx.type, tx.amount, tx.category, tx.description);

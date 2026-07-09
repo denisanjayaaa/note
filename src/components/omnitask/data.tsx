@@ -499,12 +499,13 @@ export function useTasks() {
       title: string,
       priority: Task["priority"] = "medium",
       due_date?: string,
-      status: string = "todo"
+      status: string = "todo",
+      description?: string
     ) => {
       const t: Task = {
         id: Date.now().toString(),
         title,
-        description: "",
+        description: description || "",
         status,
         priority,
         due_date: due_date || null,

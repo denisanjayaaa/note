@@ -39,7 +39,7 @@ interface TasksNotesViewProps {
   notes: Note[];
   folders: string[];
   categories: TaskCategory[];
-  addTask: (title: string, priority: Task["priority"], dueDate?: string, status?: string) => Promise<void>;
+  addTask: (title: string, priority: Task["priority"], dueDate?: string, status?: string, description?: string) => Promise<void>;
   updateTaskStatus: (id: string, status: string) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   addSubtask?: (taskId: string, title: string) => Promise<void>;

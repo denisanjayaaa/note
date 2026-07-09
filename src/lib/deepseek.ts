@@ -30,6 +30,7 @@ export interface ParsedNote {
 
 export interface ParsedTask {
   title: string;
+  description: string;
   priority: "high" | "medium" | "low";
   due_date: string | null;
   status: "todo" | "in_progress";
@@ -92,24 +93,26 @@ async function deepseekChat(
 const SYSTEM_PROMPT = `Kamu adalah asisten produktivitas AI yang cerdas. Tugasmu adalah memparse input pengguna dalam bahasa alami (Indonesia atau Inggris) dan menentukan apa yang perlu dibuat: tugas (task), catatan (note), transaksi keuangan (transaction), atau kombinasi.
 
 Aturan parsing:
-1. **Tanggal**: Deteksi semua tanggal, deadline, tenggat waktu. Konversi ke format YYYY-MM-DD. Pahami "besok", "lusa", "hari ini", "minggu depan", "bulan depan", nama hari ("senin", "selasa", dll), dan format tanggal ("10 jul 2026", "10/07/26", "July 10, 2026").
-2. **Prioritas**: Deteksi prioritas dari kata seperti "high/tinggi/penting/urgent" → high, "medium/sedang" → medium, "low/rendah/nanti/santai" → low. Default medium.
-3. **Transaksi Keuangan**: HANYA buat transaksi jika ada nominal uang yang JELAS dan SPESIFIK — angka dengan multiplier (rb, ribu, juta, jt, k), atau mata uang (Rp, $, IDR). JANGAN pernah membuat transaksi jika tidak ada nominal uang! Nominal tanggal (seperti "10 jul") bukan uang.
-4. **Catatan**: Jika input terdengar seperti ide, catatan, informasi, atau renungan tanpa deadline/prioritas, buat note.
-5. **Tugas**: Jika ada tindakan, deadline, prioritas, atau sesuatu yang perlu dikerjakan, buat task.
-6. **Kombinasi**: Bisa buat note + task sekaligus. HANYA buat transaction jika ada nominal uang.
+1. **Judul TITLE harus SINGKAT** — ambil inti/poin utama saja (max 5-7 kata), jangan seluruh input.
+2. **Detail lengkap** taruh di 'content' (untuk note) atau 'description' (untuk task).
+3. **Tanggal**: Deteksi semua tanggal, deadline, tenggat waktu. Konversi ke format YYYY-MM-DD. Pahami "besok", "lusa", "hari ini", "minggu depan", "bulan depan", nama hari ("senin", "selasa", dll), dan format tanggal ("10 jul 2026", "10/07/26", "July 10, 2026").
+4. **Prioritas**: Deteksi prioritas dari kata seperti "high/tinggi/penting/urgent" → high, "medium/sedang" → medium, "low/rendah/nanti/santai" → low. Default medium.
+5. **Transaksi Keuangan**: HANYA buat transaksi jika ada nominal uang yang JELAS dan SPESIFIK — angka dengan multiplier (rb, ribu, juta, jt, k), atau mata uang (Rp, $, IDR). JANGAN pernah membuat transaksi jika tidak ada nominal uang! Nominal tanggal (seperti "10 jul") bukan uang.
+6. **Catatan**: Jika input terdengar seperti ide, catatan, informasi, atau renungan tanpa deadline/prioritas, buat note dengan title singkat dan content detail.
+7. **Tugas**: Jika ada tindakan, deadline, prioritas, atau sesuatu yang perlu dikerjakan, buat task dengan title singkat dan description berisi detail.
+8. **Kombinasi**: Bisa buat note + task sekaligus. HANYA buat transaction jika ada nominal uang.
 
 Keluaran HARUS berupa JSON murni (tanpa markdown, tanpa backticks) dengan format:
 {
-  "note": { "title": "judul", "content": "isi catatan" } | null,
-  "task": { "title": "judul", "priority": "high|medium|low", "due_date": "YYYY-MM-DD" | null, "status": "todo|in_progress" } | null,
+  "note": { "title": "judul singkat", "content": "isi catatan detail" } | null,
+  "task": { "title": "judul singkat", "description": "detail lengkap tugas", "priority": "high|medium|low", "due_date": "YYYY-MM-DD" | null, "status": "todo|in_progress" } | null,
   "transaction": { "type": "income|expense", "amount": number, "category": "string", "description": "string" } | null,
   "summary": "Penjelasan singkat bahasa Indonesia apa yang akan dibuat"
 }
 
 Contoh:
 Input: "pertemuan meeting dan pembuatan aplikasi tanggal 10 jul 2026, high"
-Output: {"note":{"title":"Pertemuan Meeting dan Pembuatan Aplikasi","content":"Meeting untuk membahas pembuatan aplikasi."},"task":{"title":"Pertemuan Meeting dan Pembuatan Aplikasi","priority":"high","due_date":"2026-07-10","status":"todo"},"transaction":null,"summary":"Membuat catatan dan tugas dengan prioritas tinggi untuk pertemuan tanggal 10 Juli 2026"}
+Output: {"note":{"title":"Meeting & Pembuatan Aplikasi","content":"Pertemuan meeting dan pembuatan aplikasi. Deadline: 10 Juli 2026. Prioritas: High."},"task":{"title":"Meeting & Pembuatan Aplikasi","description":"Pertemuan meeting dan pembuatan aplikasi. Deadline: 10 Juli 2026.","priority":"high","due_date":"2026-07-10","status":"todo"},"transaction":null,"summary":"Membuat catatan dan tugas: Meeting & Pembuatan Aplikasi (prioritas tinggi, tenggat 10 Juli 2026)"}
 
 Input: "gaji bulan ini 15 juta"
 Output: {"note":null,"task":null,"transaction":{"type":"income","amount":15000000,"category":"Salary","description":"Gaji bulan ini"},"summary":"Mencatat pemasukan gaji sebesar Rp 15.000.000"}
@@ -118,7 +121,13 @@ Input: "beli makan siang 45rb"
 Output: {"note":null,"task":null,"transaction":{"type":"expense","amount":45000,"category":"Food","description":"Makan siang"},"summary":"Mencatat pengeluaran makan siang sebesar Rp 45.000"}
 
 Input: "ide aplikasi absensi online"
-Output: {"note":{"title":"Ide Aplikasi Absensi Online","content":"Ide untuk membuat aplikasi absensi online."},"task":null,"transaction":null,"summary":"Membuat catatan baru tentang ide aplikasi absensi online"}`;
+Output: {"note":{"title":"Aplikasi Absensi Online","content":"Ide untuk membuat aplikasi absensi online."},"task":null,"transaction":null,"summary":"Membuat catatan baru: Aplikasi Absensi Online"}
+
+Input: "beli server baru besok urgent"
+Output: {"note":null,"task":{"title":"Beli Server Baru","description":"Beli server baru. Deadline: besok. Prioritas: Tinggi.","priority":"high","due_date":"2026-07-10","status":"todo"},"transaction":null,"summary":"Membuat tugas: Beli Server Baru (urgent, deadline besok)"}
+
+Input: "meeting dengan client jumat, medium"
+Output: {"note":null,"task":{"title":"Meeting dengan Client","description":"Meeting dengan client. Deadline: Jumat. Prioritas: Medium.","priority":"medium","due_date":"2026-07-11","status":"todo"},"transaction":null,"summary":"Membuat tugas: Meeting dengan Client (medium, deadline Jumat)"}`;
 
 export async function parseNaturalInput(input: string): Promise<ParsedIntent> {
   try {
@@ -204,30 +213,41 @@ function fallbackParse(input: string): ParsedIntent {
     result.summary = `${isIncome ? "Pemasukan" : "Pengeluaran"} ${category}: Rp ${amount.toLocaleString("id-ID")}`;
   }
 
+  // Generate short title: first meaningful phrase (up to ~50 chars, split at comma/semicolon/period)
+  const shortTitle = input.trim()
+    .replace(/\s*[,;.].*$/s, "")  // Cut at first punctuation
+    .replace(/\s+(high|medium|low|urgent|tinggi|sedang|rendah|penting|nanti)$/i, "") // Remove trailing priority
+    .replace(/\s+(tanggal|tgl|deadline|due)\s+.*$/i, "") // Remove trailing date phrases
+    .trim()
+    .slice(0, 50);
+  const finalTitle = shortTitle.length > 5 ? shortTitle : input.trim().slice(0, 50);
+  const fullContent = `Dari: ${input.trim()}`;
+
   if (isSimpleNote) {
     result.note = {
-      title: input.trim().length > 60 ? input.trim().slice(0, 60) + "..." : input.trim(),
-      content: `Dari input: ${input.trim()}`,
+      title: finalTitle,
+      content: fullContent,
     };
-    result.summary = `Membuat catatan: "${input.trim().slice(0, 40)}${input.length > 40 ? "..." : ""}"`;
+    result.summary = `Membuat catatan: "${finalTitle}"`;
   }
 
   if (hasTaskIndicators || (result.transaction && !result.note)) {
     result.task = {
-      title: input.trim(),
+      title: finalTitle,
+      description: fullContent,
       priority,
       due_date: parsedDate,
       status: "todo",
     };
     const dateStr = parsedDate ? ` (tenggat ${parsedDate})` : "";
-    result.summary = `Membuat tugas${result.note ? " dan catatan" : ""}: "${input.trim().slice(0, 40)}..."${dateStr} prioritas ${priority}`;
+    result.summary = `Membuat tugas${result.note ? " dan catatan" : ""}: "${finalTitle}"${dateStr} prioritas ${priority}`;
   }
 
   // If nothing was detected, create both
   if (!result.note && !result.task && !result.transaction) {
-    result.note = { title: input.trim(), content: `Dari input: ${input.trim()}` };
-    result.task = { title: input.trim(), priority: "medium", due_date: null, status: "todo" };
-    result.summary = `Membuat catatan dan tugas: "${input.trim().slice(0, 40)}..."`;
+    result.note = { title: finalTitle, content: fullContent };
+    result.task = { title: finalTitle, description: fullContent, priority: "medium", due_date: null, status: "todo" };
+    result.summary = `Membuat catatan dan tugas: "${finalTitle}"`;
   }
 
   return result;
