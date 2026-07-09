@@ -127,6 +127,7 @@ function TaskCard({
   onEdit?: (task: Task) => void;
   onTogglePin?: (taskId: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
@@ -187,86 +188,114 @@ function TaskCard({
               <GripVertical size={14} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">{task.title}</p>
+              {/* Clickable title — expands to show description & subtasks */}
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="w-full text-left"
+              >
+                <p className="text-sm font-medium">{task.title}</p>
+              </button>
 
-              {task.tags && task.tags.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {task.tags.map((tag, ti) => (
-                    <span
-                      key={ti}
-                      className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
-                        TAG_COLORS[ti % TAG_COLORS.length]
-                      }`}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {totalSubtasks > 0 && (
-                <div className="mt-1.5">
-                  <button
-                    onClick={() => setShowSubtasks(!showSubtasks)}
-                    className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+              {/* Expanded: show description, tags, subtasks, metadata */}
+              <AnimatePresence initial={false}>
+                {expanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
                   >
-                    <div className="flex h-1 w-12 overflow-hidden rounded-full bg-muted-foreground/20">
-                      <div
-                        className="h-full rounded-full bg-emerald-500 transition-all"
-                        style={{ width: `${(doneSubtasks / totalSubtasks) * 100}%` }}
-                      />
-                    </div>
-                    <span>{doneSubtasks}/{totalSubtasks}</span>
-                    <span className="text-[8px]">{showSubtasks ? "▲" : "▼"}</span>
-                  </button>
-                  {showSubtasks && (
-                    <div className="mt-1 space-y-0.5">
-                      {task.subtasks.map((st) => (
-                        <SubtaskItem
-                          key={st.id}
-                          subtask={st}
-                          onToggle={(id) => onToggleSubtask?.(task.id, id)}
-                        />
-                      ))}
-                      <form onSubmit={handleAddSubtask} className="mt-1 flex gap-1">
-                        <input
-                          value={newSubtask}
-                          onChange={(e) => setNewSubtask(e.target.value)}
-                          placeholder="+ Add subtask..."
-                          className="flex-1 rounded border-0 bg-transparent px-2 py-0.5 text-xs outline-none ring-1 ring-border focus:ring-ring"
-                        />
-                      </form>
-                    </div>
-                  )}
-                </div>
-              )}
+                    {/* Description */}
+                    {task.description && (
+                      <p className="mt-1.5 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        {task.description}
+                      </p>
+                    )}
 
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                    task.priority === "high"
-                      ? "bg-destructive/10 text-destructive"
-                      : task.priority === "medium"
-                        ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
-                        : "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
-                  }`}
-                >
-                  {PRIORITY_LABELS[task.priority]}
-                </span>
-                {task.due_date && (
-                  <span
-                    className={`inline-flex items-center gap-1 text-[10px] ${
-                      isOverdue ? "text-destructive" : "text-muted-foreground"
-                    }`}
-                  >
-                    <CalendarDays size={10} />
-                    {new Date(task.due_date).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
+                    {/* Tags */}
+                    {task.tags && task.tags.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {task.tags.map((tag, ti) => (
+                          <span
+                            key={ti}
+                            className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium ${
+                              TAG_COLORS[ti % TAG_COLORS.length]
+                            }`}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Subtasks */}
+                    {totalSubtasks > 0 && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => setShowSubtasks(!showSubtasks)}
+                          className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                        >
+                          <div className="flex h-1 w-12 overflow-hidden rounded-full bg-muted-foreground/20">
+                            <div
+                              className="h-full rounded-full bg-emerald-500 transition-all"
+                              style={{ width: `${(doneSubtasks / totalSubtasks) * 100}%` }}
+                            />
+                          </div>
+                          <span>{doneSubtasks}/{totalSubtasks}</span>
+                          <span className="text-[8px]">{showSubtasks ? "▲" : "▼"}</span>
+                        </button>
+                        {showSubtasks && (
+                          <div className="mt-1 space-y-0.5">
+                            {task.subtasks.map((st) => (
+                              <SubtaskItem
+                                key={st.id}
+                                subtask={st}
+                                onToggle={(id) => onToggleSubtask?.(task.id, id)}
+                              />
+                            ))}
+                            <form onSubmit={handleAddSubtask} className="mt-1 flex gap-1">
+                              <input
+                                value={newSubtask}
+                                onChange={(e) => setNewSubtask(e.target.value)}
+                                placeholder="+ Add subtask..."
+                                className="flex-1 rounded border-0 bg-transparent px-2 py-0.5 text-xs outline-none ring-1 ring-border focus:ring-ring"
+                              />
+                            </form>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Priority & Due Date */}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                          task.priority === "high"
+                            ? "bg-destructive/10 text-destructive"
+                            : task.priority === "medium"
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
+                              : "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
+                        }`}
+                      >
+                        {PRIORITY_LABELS[task.priority]}
+                      </span>
+                      {task.due_date && (
+                        <span
+                          className={`inline-flex items-center gap-1 text-[10px] ${
+                            isOverdue ? "text-destructive" : "text-muted-foreground"
+                          }`}
+                        >
+                          <CalendarDays size={10} />
+                          {new Date(task.due_date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
                 )}
-              </div>
+              </AnimatePresence>
             </div>
             <div className="flex shrink-0 gap-0.5">
               {/* Pin button — with stopPropagation to prevent drag trigger. Always visible when pinned */}
