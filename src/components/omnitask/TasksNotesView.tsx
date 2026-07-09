@@ -127,7 +127,7 @@ function TaskCard({
   onEdit?: (task: Task) => void;
   onTogglePin?: (taskId: string) => void;
 }) {
-  const [showDetail, setShowDetail] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
@@ -165,7 +165,6 @@ function TaskCard({
   return (
     <Draggable draggableId={task.id} index={index}>
       {(p, sn) => (
-        <>
         <div
           ref={p.innerRef}
           {...p.draggableProps}
@@ -189,13 +188,35 @@ function TaskCard({
               <GripVertical size={14} />
             </div>
             <div className="flex-1 min-w-0">
-              {/* Clickable title — opens detail popup */}
+              {/* Clickable title — click to expand/collapse description */}
               <button
-                onClick={() => setShowDetail(true)}
+                onClick={() => setExpanded(!expanded)}
                 className="w-full text-left"
               >
                 <p className="text-sm font-medium">{task.title}</p>
               </button>
+
+              {/* Expanded: show description inline */}
+              <AnimatePresence initial={false}>
+                {expanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    {task.description ? (
+                      <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        {task.description}
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-xs italic text-muted-foreground/40">
+                        No description
+                      </p>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <div className="flex shrink-0 gap-0.5">
               {/* Pin button — with stopPropagation to prevent drag trigger. Always visible when pinned */}
@@ -308,41 +329,6 @@ function TaskCard({
             </div>
           </div>
         </div>
-
-        {/* Detail popup */}
-        {showDetail && (
-          <>
-            <div
-              className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[2px]"
-              onClick={() => setShowDetail(false)}
-            />
-            <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="relative w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-2xl"
-              >
-                <button
-                  onClick={() => setShowDetail(false)}
-                  className="absolute right-3 top-3 rounded p-1 text-muted-foreground hover:bg-accent"
-                >
-                  <X size={14} />
-                </button>
-                <h3 className="text-sm font-semibold pr-6">{task.title}</h3>
-                {task.description ? (
-                  <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {task.description}
-                  </p>
-                ) : (
-                  <p className="mt-2 text-xs italic text-muted-foreground/40">
-                    No description
-                  </p>
-                )}
-              </motion.div>
-            </div>
-          </>
-        )}
-      </> {/* end fragment */}
       )}
     </Draggable>
   );
