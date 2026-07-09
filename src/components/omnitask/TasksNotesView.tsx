@@ -1291,7 +1291,13 @@ export function TasksNotesView({
                   ? sortTasks(tasks.filter((t) => t.status === col.id))
                   : tasks.filter((t) => t.status === col.id);
                 return (
-                  <Droppable key={col.id} droppableId={col.id}>
+                  <motion.div
+                    key={col.id}
+                    layout
+                    transition={{ type: "spring", stiffness: 260, damping: 28, mass: 0.6 }}
+                    className="min-w-0"
+                  >
+                  <Droppable droppableId={col.id}>
                     {(p, sn) => (
                       <div
                         ref={p.innerRef}
@@ -1345,6 +1351,7 @@ export function TasksNotesView({
                       </div>
                     )}
                   </Droppable>
+                  </motion.div>
                 );
               })}
             </div>
