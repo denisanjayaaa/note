@@ -117,6 +117,7 @@ function TaskCard({
   onEdit,
   onTogglePin,
   onUpdatePriority,
+  onUpdateDueDate,
 }: {
   task: Task;
   index: number;
@@ -128,8 +129,10 @@ function TaskCard({
   onEdit?: (task: Task) => void;
   onTogglePin?: (taskId: string) => void;
   onUpdatePriority?: (taskId: string, priority: Task["priority"]) => void;
+  onUpdateDueDate?: (taskId: string, dueDate: string | null) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
@@ -224,7 +227,7 @@ function TaskCard({
                 </div>
               )}
 
-              {/* Priority (clickable) & Due Date */}
+              {/* Priority (clickable) & Due Date (clickable) */}
               <div className="mt-1.5 flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -244,20 +247,36 @@ function TaskCard({
                 >
                   {PRIORITY_LABELS[task.priority]}
                 </button>
-                {task.due_date && (
-                  <span
-                    className={`text-[10px] ${
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                    className={`text-[10px] transition-opacity hover:opacity-80 ${
                       isOverdue
                         ? "font-semibold text-red-500"
                         : "text-muted-foreground"
                     }`}
+                    title="Click to change due date"
                   >
-                    {new Date(task.due_date + "T00:00:00").toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </span>
-                )}
+                    {task.due_date
+                      ? new Date(task.due_date + "T00:00:00").toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "+ Set date"}
+                  </button>
+                  {showDatePicker && (
+                    <div className="absolute left-0 top-full z-20 mt-1" onClick={(e) => e.stopPropagation()}>
+                      <DatePickerPopover
+                        value={task.due_date || undefined}
+                        onChange={(d) => {
+                          onUpdateDueDate?.(task.id, d || null);
+                          setShowDatePicker(false);
+                        }}
+                        placeholder="Set date"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex shrink-0 gap-0.5">
@@ -919,6 +938,13 @@ export function TasksNotesView({
     [updateTask]
   );
 
+  const handleUpdateDueDate = useCallback(
+    (taskId: string, dueDate: string | null) => {
+      updateTask?.(taskId, { due_date: dueDate });
+    },
+    [updateTask]
+  );
+
   // Note handlers
   const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1330,6 +1356,7 @@ export function TasksNotesView({
                               onEdit={updateTask ? setEditingTask : undefined}
                               onTogglePin={togglePinTask}
                               onUpdatePriority={handleUpdatePriority}
+                              onUpdateDueDate={handleUpdateDueDate}
                             />
                           ))}
                           {p.placeholder}
