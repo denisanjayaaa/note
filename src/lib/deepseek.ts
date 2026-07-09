@@ -94,10 +94,10 @@ const SYSTEM_PROMPT = `Kamu adalah asisten produktivitas AI yang cerdas. Tugasmu
 Aturan parsing:
 1. **Tanggal**: Deteksi semua tanggal, deadline, tenggat waktu. Konversi ke format YYYY-MM-DD. Pahami "besok", "lusa", "hari ini", "minggu depan", "bulan depan", nama hari ("senin", "selasa", dll), dan format tanggal ("10 jul 2026", "10/07/26", "July 10, 2026").
 2. **Prioritas**: Deteksi prioritas dari kata seperti "high/tinggi/penting/urgent" → high, "medium/sedang" → medium, "low/rendah/nanti/santai" → low. Default medium.
-3. **Transaksi Keuangan**: Jika ada angka nominal uang (Rp, $, IDR, ribu, juta), kategori (gaji, makan, transport, dll), dan jenis (pemasukan/pengeluaran/income/expense), buat transaksi.
+3. **Transaksi Keuangan**: HANYA buat transaksi jika ada nominal uang yang JELAS dan SPESIFIK — angka dengan multiplier (rb, ribu, juta, jt, k), atau mata uang (Rp, $, IDR). JANGAN pernah membuat transaksi jika tidak ada nominal uang! Nominal tanggal (seperti "10 jul") bukan uang.
 4. **Catatan**: Jika input terdengar seperti ide, catatan, informasi, atau renungan tanpa deadline/prioritas, buat note.
 5. **Tugas**: Jika ada tindakan, deadline, prioritas, atau sesuatu yang perlu dikerjakan, buat task.
-6. **Kombinasi**: Bisa buat note + task + transaction sekaligus jika input mengandung ketiganya.
+6. **Kombinasi**: Bisa buat note + task sekaligus. HANYA buat transaction jika ada nominal uang.
 
 Keluaran HARUS berupa JSON murni (tanpa markdown, tanpa backticks) dengan format:
 {
@@ -157,18 +157,25 @@ function fallbackParse(input: string): ParsedIntent {
         : "medium";
 
   // Transaction detection — look for money amounts
+  // Fix: prevent dates (e.g. "10" from "10 jul") from being detected as money
   const moneyMatch = lower.match(/(\d+[\d.,]*)\s*(rb|ribu|jt|juta|k|ribu|ratus\s*ribu)?/i);
   let amount = 0;
+  let hasMultiplier = false;
   if (moneyMatch) {
     let val = parseFloat(moneyMatch[1].replace(/[,.]/g, ""));
     const multiplier = moneyMatch[2]?.toLowerCase() || "";
+    hasMultiplier = multiplier.length > 0;
     if (multiplier === "rb" || multiplier === "ribu" || multiplier === "k") val *= 1000;
     else if (multiplier === "jt" || multiplier === "juta") val *= 1000000;
     else if (multiplier === "ratus ribu") val *= 100000;
     amount = val;
   }
 
-  const hasMoney = amount > 0;
+  // Only count as money if: there's a multiplier (rb/juta/k), OR amount >= 1000, OR currency symbol present
+  const hasCurrencySymbol = /[₹$€£¥]|\brp\b|\bidr\b|\bdollar\b|\brupiah\b/i.test(lower);
+  const hasMoney = hasMultiplier || amount >= 1000 || hasCurrencySymbol;
+  // Reset amount to 0 if it's not real money to prevent false expense
+  if (!hasMoney) amount = 0;
   const incomeWords = ["gaji", "salary", "pemasukan", "income", "bonus", "honor", "fee", "pendapatan", "transfer masuk"];
   const expenseWords = ["beli", "bayar", "makan", "pengeluaran", "expense", "cost", "biaya", "ongkos", "sewa", "tagihan", "bill"];
   const isIncome = incomeWords.some(w => lower.includes(w));
