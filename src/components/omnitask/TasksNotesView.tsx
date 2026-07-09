@@ -167,10 +167,12 @@ function TaskCard({
         <div
           ref={p.innerRef}
           {...p.draggableProps}
-          className={`group relative rounded-lg border border-border bg-card transition-all ${
+          className={`group relative rounded-lg border transition-all ${
             sn.isDragging
-              ? "z-50 shadow-2xl ring-2 ring-amber-400/30 scale-[1.02] rotate-[1deg]"
-              : "hover:shadow-sm"
+              ? "z-50 shadow-2xl ring-2 ring-amber-400/30 scale-[1.02] rotate-[1deg] bg-card"
+              : task.is_pinned
+                ? "border-border/80 bg-red-50/40 dark:bg-red-500/5 shadow-sm"
+                : "border-border bg-card hover:shadow-sm"
           } ${
             task.is_pinned
               ? "border-l-[3px] border-l-red-500"
@@ -269,19 +271,19 @@ function TaskCard({
               </div>
             </div>
             <div className="flex shrink-0 gap-0.5">
-              {/* Pin button — with stopPropagation to prevent drag trigger */}
+              {/* Pin button — with stopPropagation to prevent drag trigger. Always visible when pinned */}
               {onTogglePin && (
                 <button
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={() => onTogglePin(task.id)}
-                  className={`mt-0.5 rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 ${
+                  className={`mt-0.5 rounded p-1 transition-opacity ${
                     task.is_pinned
-                      ? "text-amber-500"
-                      : "text-muted-foreground/40 hover:text-foreground"
+                      ? "text-red-500 opacity-100"
+                      : "text-muted-foreground/40 opacity-0 hover:text-foreground group-hover:opacity-100"
                   }`}
                   title={task.is_pinned ? "Unpin" : "Pin to top"}
                 >
-                  <Pin size={12} />
+                  <Pin size={12} fill={task.is_pinned ? "currentColor" : "none"} />
                 </button>
               )}
               {onEdit && (
