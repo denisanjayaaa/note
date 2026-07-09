@@ -127,7 +127,7 @@ function TaskCard({
   onEdit?: (task: Task) => void;
   onTogglePin?: (taskId: string) => void;
 }) {
-  const [showDetail, setShowDetail] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [showTags, setShowTags] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
@@ -188,46 +188,25 @@ function TaskCard({
               <GripVertical size={14} />
             </div>
             <div className="flex-1 min-w-0">
+              {/* Clickable title — toggles description expand */}
               <button
-                onClick={() => setShowDetail(true)}
+                onClick={() => setExpanded(!expanded)}
                 className="w-full text-left"
               >
-                <p className="text-sm font-medium truncate">{task.title}</p>
+                <p className="text-sm font-medium">{task.title}</p>
               </button>
 
-              {/* Detail popup */}
-              {showDetail && (
-                <>
-                  <div
-                    className="fixed inset-0 z-[60]"
-                    onClick={() => setShowDetail(false)}
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className="absolute left-0 right-0 top-full z-[61] mt-1.5 rounded-lg border border-border bg-card p-3 shadow-xl"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-sm font-semibold leading-snug">{task.title}</h4>
-                      <button
-                        onClick={() => setShowDetail(false)}
-                        className="shrink-0 rounded p-0.5 text-muted-foreground/40 hover:text-foreground"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                    {task.description ? (
-                      <p className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                        {task.description}
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-xs italic text-muted-foreground/40">
-                        No description
-                      </p>
-                    )}
-                  </motion.div>
-                </>
-              )}
+              {/* Description: line-clamp when collapsed, full when expanded */}
+              {task.description ? (
+                <p
+                  onClick={() => setExpanded(!expanded)}
+                  className={`mt-1 text-xs text-muted-foreground cursor-pointer transition-all ${
+                    expanded ? "" : "line-clamp-2"
+                  }`}
+                >
+                  {task.description}
+                </p>
+              ) : null}
             </div>
             <div className="flex shrink-0 gap-0.5">
               {/* Pin button — with stopPropagation to prevent drag trigger. Always visible when pinned */}
@@ -237,8 +216,8 @@ function TaskCard({
                   onClick={() => onTogglePin(task.id)}
                   className={`mt-0.5 rounded p-1 transition-opacity ${
                     task.is_pinned
-                      ? "text-red-500 opacity-100"
-                      : "text-muted-foreground/40 opacity-0 hover:text-foreground group-hover:opacity-100"
+                      ? "text-red-500"
+                      : "text-muted-foreground/40 hover:text-foreground"
                   }`}
                   title={task.is_pinned ? "Unpin" : "Pin to top"}
                 >
@@ -248,7 +227,7 @@ function TaskCard({
               {onEdit && (
                 <button
                   onClick={() => onEdit(task)}
-                  className="mt-0.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                  className="mt-0.5 rounded p-1 text-muted-foreground/40 transition-opacity hover:text-foreground"
                   title="Edit task"
                 >
                   <Edit3 size={13} />
@@ -258,7 +237,7 @@ function TaskCard({
                 <div className="relative">
                   <button
                     onClick={() => setShowTags(!showTags)}
-                    className="mt-0.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                    className="mt-0.5 rounded p-1 text-muted-foreground/40 transition-opacity hover:text-foreground"
                     title="Add tag"
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -332,7 +311,7 @@ function TaskCard({
               )}
               <button
                 onClick={() => onDelete(task.id)}
-                className="mt-0.5 rounded p-1 text-muted-foreground/40 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
+                className="mt-0.5 rounded p-1 text-muted-foreground/40 transition-opacity hover:bg-destructive/10 hover:text-destructive"
                 title="Delete task"
               >
                 <Trash2 size={13} />
