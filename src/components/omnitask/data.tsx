@@ -1,6 +1,9 @@
-import { useState, useCallback, createContext, useContext, useEffect } from "react";
+import { useState, useCallback, createContext, useContext, useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 
 // ─── Types ───
 
@@ -142,226 +145,6 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-// ─── Habits Hook ───
-
-export function useHabits() {
-  const [habits, setHabits] = useState<Habit[]>([
-    {
-      id: "h1",
-      name: "Morning Exercise",
-      color: "#22c55e",
-      icon: "💪",
-      logs: (() => {
-        const logs = [];
-        for (let i = 0; i < 7; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          logs.push({ date: d.toISOString().split("T")[0], done: i < 5 });
-        }
-        return logs;
-      })(),
-      streak: 5,
-      longest_streak: 12,
-      created_at: "",
-    },
-    {
-      id: "h2",
-      name: "Read 30 mins",
-      color: "#3b82f6",
-      icon: "📚",
-      logs: (() => {
-        const logs = [];
-        for (let i = 0; i < 7; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          logs.push({ date: d.toISOString().split("T")[0], done: i < 3 });
-        }
-        return logs;
-      })(),
-      streak: 3,
-      longest_streak: 8,
-      created_at: "",
-    },
-    {
-      id: "h3",
-      name: "Meditate",
-      color: "#8b5cf6",
-      icon: "🧘",
-      logs: (() => {
-        const logs = [];
-        for (let i = 0; i < 7; i++) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          logs.push({ date: d.toISOString().split("T")[0], done: i < 4 });
-        }
-        return logs;
-      })(),
-      streak: 4,
-      longest_streak: 6,
-      created_at: "",
-    },
-  ]);
-
-  const addHabit = useCallback(async (name: string, color: string, icon: string) => {
-    const h: Habit = {
-      id: "h-" + Date.now(),
-      name,
-      color,
-      icon,
-      logs: [],
-      streak: 0,
-      longest_streak: 0,
-      created_at: "",
-    };
-    setHabits((p) => [h, ...p]);
-  }, []);
-
-  const logHabit = useCallback(async (id: string, date: string, done: boolean) => {
-    setHabits((prev) =>
-      prev.map((h) => {
-        if (h.id !== id) return h;
-        const filteredLogs = h.logs.filter((l) => l.date !== date);
-        const logs = [...filteredLogs, { date, done }];
-        // Calculate streak
-        const sorted = [...logs].filter((l) => l.done).sort((a, b) => b.date.localeCompare(a.date));
-        let streak = 0;
-        if (sorted.length > 0) {
-          const today = new Date().toISOString().split("T")[0];
-          const mostRecent = sorted[0].date;
-          const mostRecentDate = new Date(mostRecent + "T00:00:00");
-          const todayDate = new Date(today + "T00:00:00");
-          const diffMs = todayDate.getTime() - mostRecentDate.getTime();
-          const diffDays = Math.round(diffMs / 86400000);
-          if (diffDays <= 1 || sorted[0].date === today) {
-            streak = 1;
-            for (let i = 1; i < sorted.length; i++) {
-              const prev = new Date(sorted[i - 1].date + "T00:00:00");
-              const curr = new Date(sorted[i].date + "T00:00:00");
-              const diff = Math.round((prev.getTime() - curr.getTime()) / 86400000);
-              if (diff === 1) streak++;
-              else break;
-            }
-          }
-        }
-        return { ...h, logs, streak, longest_streak: Math.max(streak, h.longest_streak) };
-      })
-    );
-  }, []);
-
-  const removeHabit = useCallback(async (id: string) => {
-    setHabits((p) => p.filter((h) => h.id !== id));
-  }, []);
-
-  const updateHabit = useCallback(
-    async (id: string, data: { name?: string; color?: string; icon?: string }) => {
-      setHabits((p) =>
-        p.map((h) => (h.id === id ? { ...h, ...data } : h))
-      );
-    },
-    []
-  );
-
-  return { habits, addHabit, logHabit, removeHabit, updateHabit };
-}
-
-// ─── Notes Hook ───
-
-export function useNotes() {
-  const [notes, setNotes] = useState<Note[]>([
-    {
-      id: "1",
-      title: "New Business Idea",
-      content: "Building an all-in-one productivity SaaS",
-      is_pinned: true,
-      folder_path: "/",
-      tags: [],
-      created_at: "",
-      updated_at: "",
-    },
-    {
-      id: "2",
-      title: "Shopping List",
-      content: "Coffee, milk, rice, soap",
-      is_pinned: false,
-      folder_path: "/",
-      tags: [],
-      created_at: "",
-      updated_at: "",
-    },
-    {
-      id: "3",
-      title: "Meeting Notes",
-      content: "Q1 review with the team — aiming for 1000 users next month",
-      is_pinned: false,
-      folder_path: "/",
-      tags: [],
-      created_at: "",
-      updated_at: "",
-    },
-  ]);
-  const [loading, setLoading] = useState(false);
-
-  const addNote = useCallback(async (title: string, content: string, folder_path?: string) => {
-    const newNote: Note = {
-      id: Date.now().toString(),
-      title,
-      content,
-      is_pinned: false,
-      folder_path: folder_path || "/",
-      tags: [],
-      created_at: "",
-      updated_at: "",
-    };
-    setNotes((p) => [newNote, ...p]);
-  }, []);
-
-  const togglePinNote = useCallback(async (id: string, cur: boolean) => {
-    setNotes((p) =>
-      p.map((n) => (n.id === id ? { ...n, is_pinned: !cur } : n))
-    );
-  }, []);
-
-  const deleteNote = useCallback(async (id: string) => {
-    setNotes((p) => p.filter((n) => n.id !== id));
-  }, []);
-
-  const updateNote = useCallback(async (id: string, title: string, content: string) => {
-    setNotes((p) =>
-      p.map((n) => (n.id === id ? { ...n, title, content } : n))
-    );
-  }, []);
-
-  // ─── Folder Management ───
-  const [folders, setFolders] = useState<string[]>(["/", "Work", "Personal", "Ideas"]);
-
-  const addFolder = useCallback(async (name: string) => {
-    setFolders((p) => (p.includes(name) ? p : [...p, name]));
-  }, []);
-
-  const renameFolder = useCallback(async (oldName: string, newName: string) => {
-    setFolders((p) => p.map((f) => (f === oldName ? newName : f)));
-    setNotes((p) =>
-      p.map((n) => (n.folder_path === oldName ? { ...n, folder_path: newName } : n))
-    );
-  }, []);
-
-  const deleteFolder = useCallback(async (name: string) => {
-    if (name === "/") return; // Can't delete root
-    setFolders((p) => p.filter((f) => f !== name));
-    setNotes((p) =>
-      p.map((n) => (n.folder_path === name ? { ...n, folder_path: "/" } : n))
-    );
-  }, []);
-
-  const moveNoteToFolder = useCallback(async (noteId: string, folder: string) => {
-    setNotes((p) =>
-      p.map((n) => (n.id === noteId ? { ...n, folder_path: folder } : n))
-    );
-  }, []);
-
-  return { notes, loading, folders, addNote, togglePinNote, deleteNote, updateNote, addFolder, renameFolder, deleteFolder, moveNoteToFolder };
-}
-
 // ─── Category Colors ───
 
 export const CATEGORY_COLORS = [
@@ -378,74 +161,49 @@ export const CATEGORY_COLORS = [
   { color: "border-t-indigo-500", dot: "bg-indigo-500" },
 ];
 
+// ─── Helpers ───
+
+function toDateString(ts: number): string {
+  return new Date(ts).toISOString();
+}
+
 // ─── Tasks Hook ───
 
 export function useTasks() {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "1",
-      title: "Finish UI prototype",
-      description: "",
-      status: "in_progress",
-      priority: "high",
-      due_date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-      parent_id: null,
-      tags: ["frontend", "design"],
-      subtasks: [],
-      created_at: "",
-      updated_at: "",
-      is_pinned: false,
-      order: 0,
-    },
-    {
-      id: "2",
-      title: "Review financial report",
-      description: "",
-      status: "todo",
-      priority: "medium",
-      due_date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
-      parent_id: null,
-      tags: [],
-      subtasks: [],
-      created_at: "",
-      updated_at: "",
-      is_pinned: false,
-      order: 1,
-    },
-    {
-      id: "3",
-      title: "Buy domain name",
-      description: "",
-      status: "done",
-      priority: "low",
-      due_date: null,
-      parent_id: null,
-      tags: [],
-      subtasks: [],
-      created_at: "",
-      updated_at: "",
-      is_pinned: false,
-      order: 2,
-    },
-    {
-      id: "4",
-      title: "Install & setup database",
-      description: "",
-      status: "todo",
-      priority: "high",
-      due_date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-      parent_id: null,
-      tags: [],
-      subtasks: [],
-      created_at: "",
-      updated_at: "",
-      is_pinned: false,
-      order: 3,
-    },
-  ]);
-  const [loading, setLoading] = useState(false);
+  const tasksData = useQuery(api.tasks.list);
+  const addTaskMut = useMutation(api.tasks.add);
+  const updateStatusMut = useMutation(api.tasks.updateStatus);
+  const deleteTaskMut = useMutation(api.tasks.remove);
+  const addSubtaskMut = useMutation(api.tasks.addSubtask);
+  const toggleSubtaskMut = useMutation(api.tasks.toggleSubtask);
+  const updateTagsMut = useMutation(api.tasks.updateTags);
+  const updateTaskMut = useMutation(api.tasks.update);
+  const togglePinMut = useMutation(api.tasks.togglePin);
+  const reorderMut = useMutation(api.tasks.reorder);
 
-  // ─── Categories / Columns ───
+  // Transform Convex docs to frontend Task type
+  const tasks = useMemo(() => {
+    if (!tasksData) return [];
+    return tasksData.map((doc) => ({
+      id: doc._id,
+      title: doc.title,
+      description: doc.description,
+      status: doc.status,
+      priority: doc.priority,
+      due_date: doc.due_date ?? null,
+      parent_id: doc.parent_id ?? null,
+      created_at: toDateString(doc._creationTime),
+      updated_at: doc.updated_at ?? "",
+      tags: doc.tags,
+      subtasks: doc.subtasks,
+      is_pinned: doc.is_pinned,
+      order: doc.order,
+    })) as Task[];
+  }, [tasksData]);
+
+  const loading = tasksData === undefined;
+
+  // ─── Categories / Columns (client-side only) ───
 
   const [categories, setCategories] = useState<TaskCategory[]>([
     { id: "todo", label: "To Do", color: "border-t-sky-500", dot: "bg-sky-500" },
@@ -455,7 +213,7 @@ export function useTasks() {
 
   const addCategory = useCallback(async (label: string, colorIndex?: number) => {
     const id = label.toLowerCase().replace(/\s+/g, "_");
-    if (categories.some((c) => c.id === id)) return; // no duplicates
+    if (categories.some((c) => c.id === id)) return;
     const ci = colorIndex ?? categories.length % CATEGORY_COLORS.length;
     const picked = CATEGORY_COLORS[ci % CATEGORY_COLORS.length];
     setCategories((prev) => [...prev, { id, label, ...picked }]);
@@ -475,11 +233,9 @@ export function useTasks() {
   }, []);
 
   const deleteCategory = useCallback(async (id: string) => {
-    // Don't allow deleting the last category
     if (categories.length <= 1) return;
-    // Move tasks to first available category
     const firstOther = categories.find((c) => c.id !== id);
-    setTasks((prev) =>
+    setTasksLocal((prev) =>
       prev.map((t) => (t.status === id ? { ...t, status: firstOther?.id || "todo" } : t))
     );
     setCategories((prev) => prev.filter((c) => c.id !== id));
@@ -494,6 +250,10 @@ export function useTasks() {
     });
   }, []);
 
+  // We need a local copy of tasks for category deletion fallback
+  const [tasksLocal, setTasksLocal] = useState<Task[]>([]);
+  useEffect(() => { setTasksLocal(tasks); }, [tasks]);
+
   const addTask = useCallback(
     async (
       title: string,
@@ -502,110 +262,78 @@ export function useTasks() {
       status: string = "todo",
       description?: string
     ) => {
-      const t: Task = {
-        id: Date.now().toString(),
+      await addTaskMut({
         title,
-        description: description || "",
-        status,
         priority,
-        due_date: due_date || null,
-        parent_id: null,
-        tags: [],
-        subtasks: [],
-        created_at: "",
-        updated_at: "",
-        is_pinned: false,
-        order: Date.now(),
-      };
-      setTasks((p) => [t, ...p]);
+        due_date: due_date || undefined,
+        status: status as "todo" | "in_progress" | "done",
+        description: description || undefined,
+      });
     },
-    []
+    [addTaskMut]
   );
 
   const addSubtask = useCallback(async (taskId: string, title: string) => {
-    setTasks((p) =>
-      p.map((t) =>
-        t.id === taskId
-          ? { ...t, subtasks: [...t.subtasks, { id: Date.now().toString(), title, done: false }] }
-          : t
-      )
-    );
-  }, []);
+    await addSubtaskMut({ id: taskId as Id<"tasks">, title });
+  }, [addSubtaskMut]);
 
   const toggleSubtask = useCallback(async (taskId: string, subtaskId: string) => {
-    setTasks((p) =>
-      p.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              subtasks: t.subtasks.map((st) =>
-                st.id === subtaskId ? { ...st, done: !st.done } : st
-              ),
-            }
-          : t
-      )
-    );
-  }, []);
-
-  const updateTags = useCallback(async (taskId: string, tags: string[]) => {
-    setTasks((p) =>
-      p.map((t) => (t.id === taskId ? { ...t, tags } : t))
-    );
-  }, []);
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const sub = task.subtasks.find((s) => s.id === subtaskId);
+    if (!sub) return;
+    await toggleSubtaskMut({ id: taskId as Id<"tasks">, subtaskId, done: !sub.done });
+  }, [tasks, toggleSubtaskMut]);
 
   const updateTaskStatus = useCallback(
     async (id: string, status: string) => {
-      setTasks((p) =>
-        p.map((t) => (t.id === id ? { ...t, status, order: Date.now() } : t))
-      );
+      await updateStatusMut({
+        id: id as Id<"tasks">,
+        status: status as "todo" | "in_progress" | "done",
+      });
     },
-    []
+    [updateStatusMut]
   );
 
   const deleteTask = useCallback(async (id: string) => {
-    setTasks((p) => p.filter((t) => t.id !== id));
-  }, []);
+    await deleteTaskMut({ id: id as Id<"tasks"> });
+  }, [deleteTaskMut]);
+
+  const updateTags = useCallback(async (taskId: string, tags: string[]) => {
+    await updateTagsMut({ id: taskId as Id<"tasks">, tags });
+  }, [updateTagsMut]);
 
   const updateTask = useCallback(
     async (
       id: string,
       data: { title?: string; priority?: Task["priority"]; due_date?: string | null; description?: string }
     ) => {
-      setTasks((p) =>
-        p.map((t) => (t.id === id ? { ...t, ...data } : t))
-      );
+      await updateTaskMut({
+        id: id as Id<"tasks">,
+        title: data.title,
+        priority: data.priority,
+        due_date: data.due_date !== undefined ? data.due_date : undefined,
+        description: data.description,
+      });
     },
-    []
+    [updateTaskMut]
   );
 
-  // ─── Pin & Reorder ───
-
   const togglePinTask = useCallback(async (taskId: string) => {
-    setTasks((p) =>
-      p.map((t) =>
-        t.id === taskId ? { ...t, is_pinned: !t.is_pinned, order: Date.now() } : t
-      )
-    );
-  }, []);
+    await togglePinMut({ id: taskId as Id<"tasks"> });
+  }, [togglePinMut]);
 
   const reorderTask = useCallback(async (taskId: string, newOrder: number) => {
-    setTasks((p) =>
-      p.map((t) =>
-        t.id === taskId ? { ...t, order: newOrder } : t
-      )
-    );
-  }, []);
+    await reorderMut({ id: taskId as Id<"tasks">, order: newOrder });
+  }, [reorderMut]);
 
   // Sort helper: pinned first → high→medium→low → by order
-  const sortTasks = useCallback((tasks: Task[]): Task[] => {
+  const sortTasks = useCallback((tasksToSort: Task[]): Task[] => {
     const priorityWeight = { high: 0, medium: 1, low: 2 };
-    return [...tasks].sort((a, b) => {
-      // Pinned first
+    return [...tasksToSort].sort((a, b) => {
       if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-      // By priority
       const pw = priorityWeight[a.priority] - priorityWeight[b.priority];
       if (pw !== 0) return pw;
-      // By order
       return a.order - b.order;
     });
   }, []);
@@ -632,108 +360,152 @@ export function useTasks() {
   };
 }
 
+// ─── Notes Hook ───
+
+export function useNotes() {
+  const notesData = useQuery(api.notes.list);
+  const addNoteMut = useMutation(api.notes.add);
+  const togglePinNoteMut = useMutation(api.notes.togglePin);
+  const deleteNoteMut = useMutation(api.notes.remove);
+  const updateNoteMut = useMutation(api.notes.update);
+  const updateFolderMut = useMutation(api.notes.updateFolder);
+
+  // Transform Convex docs to frontend Note type
+  const notes = useMemo(() => {
+    if (!notesData) return [];
+    return notesData.map((doc) => ({
+      id: doc._id,
+      title: doc.title,
+      content: doc.content,
+      is_pinned: doc.is_pinned,
+      folder_path: doc.folder_path,
+      tags: doc.tags,
+      created_at: toDateString(doc._creationTime),
+      updated_at: doc.updated_at ?? "",
+    })) as Note[];
+  }, [notesData]);
+
+  const loading = notesData === undefined;
+
+  // ─── Folders (derived from notes + defaults) ───
+  const folders = useMemo(() => {
+    const folderSet = new Set<string>();
+    folderSet.add("/");
+    notes.forEach((n) => {
+      if (n.folder_path && n.folder_path !== "/") folderSet.add(n.folder_path);
+    });
+    return Array.from(folderSet).sort();
+  }, [notes]);
+
+  const addNote = useCallback(async (title: string, content: string, folder_path?: string) => {
+    await addNoteMut({ title, content, folder_path });
+  }, [addNoteMut]);
+
+  const togglePinNote = useCallback(async (id: string, cur: boolean) => {
+    await togglePinNoteMut({ id: id as Id<"notes">, is_pinned: cur });
+  }, [togglePinNoteMut]);
+
+  const deleteNote = useCallback(async (id: string) => {
+    await deleteNoteMut({ id: id as Id<"notes"> });
+  }, [deleteNoteMut]);
+
+  const updateNote = useCallback(async (id: string, title: string, content: string) => {
+    await updateNoteMut({ id: id as Id<"notes">, title, content });
+  }, [updateNoteMut]);
+
+  // ─── Folder Management (client-side only for existence, server-side for note moves) ───
+  const [extraFolders, setExtraFolders] = useState<string[]>(["Work", "Personal", "Ideas"]);
+
+  const addFolder = useCallback(async (name: string) => {
+    setExtraFolders((p) => (p.includes(name) ? p : [...p, name]));
+  }, []);
+
+  const renameFolder = useCallback(async (oldName: string, newName: string) => {
+    // Move all notes from old folder to new folder via Convex
+    const notesToMove = notes.filter((n) => n.folder_path === oldName);
+    await Promise.all(notesToMove.map((n) => updateFolderMut({ id: n.id as Id<"notes">, folder_path: newName })));
+    setExtraFolders((p) => p.map((f) => (f === oldName ? newName : f)));
+  }, [notes, updateFolderMut]);
+
+  const deleteFolder = useCallback(async (name: string) => {
+    if (name === "/") return;
+    // Move all notes from this folder to root
+    const notesToMove = notes.filter((n) => n.folder_path === name);
+    await Promise.all(notesToMove.map((n) => updateFolderMut({ id: n.id as Id<"notes">, folder_path: "/" })));
+    setExtraFolders((p) => p.filter((f) => f !== name));
+  }, [notes, updateFolderMut]);
+
+  const moveNoteToFolder = useCallback(async (noteId: string, folder: string) => {
+    await updateFolderMut({ id: noteId as Id<"notes">, folder_path: folder });
+  }, [updateFolderMut]);
+
+  // Combined folders list
+  const allFolders = useMemo(() => {
+    const combined = new Set([...folders, ...extraFolders]);
+    return Array.from(combined).sort();
+  }, [folders, extraFolders]);
+
+  return { notes, loading, folders: allFolders, addNote, togglePinNote, deleteNote, updateNote, addFolder, renameFolder, deleteFolder, moveNoteToFolder };
+}
+
 // ─── Transactions Hook ───
 
 export function useTransactions() {
-  const [tx, setTx] = useState<Transaction[]>([
-    {
-      id: "1",
-      wallet_name: "Cash",
-      type: "income",
-      amount: 15000000,
-      category: "Salary",
-      description: "Monthly transfer",
-      transaction_date: new Date().toISOString().split("T")[0],
-      created_at: "",
-    },
-    {
-      id: "2",
-      wallet_name: "Cash",
-      type: "expense",
-      amount: 450000,
-      category: "Entertainment",
-      description: "Netflix & Spotify",
-      transaction_date: new Date().toISOString().split("T")[0],
-      created_at: "",
-    },
-    {
-      id: "3",
-      wallet_name: "Cash",
-      type: "expense",
-      amount: 1200000,
-      category: "Food",
-      description: "Family dinner",
-      transaction_date: new Date().toISOString().split("T")[0],
-      created_at: "",
-    },
-    {
-      id: "4",
-      wallet_name: "Cash",
-      type: "expense",
-      amount: 250000,
-      category: "Transport",
-      description: "Weekly gas",
-      transaction_date: new Date().toISOString().split("T")[0],
-      created_at: "",
-    },
-    {
-      id: "5",
-      wallet_name: "Cash",
-      type: "income",
-      amount: 500000,
-      category: "Freelance",
-      description: "Logo design",
-      transaction_date: new Date().toISOString().split("T")[0],
-      created_at: "",
-    },
-  ]);
-  const [loading, setLoading] = useState(false);
+  const txData = useQuery(api.transactions.list);
+  const addTxMut = useMutation(api.transactions.add);
+  const deleteTxMut = useMutation(api.transactions.remove);
+  const updateTxMut = useMutation(api.transactions.update);
+
+  const transactions = useMemo(() => {
+    if (!txData) return [];
+    return txData.map((doc) => ({
+      id: doc._id,
+      wallet_name: doc.wallet_name,
+      type: doc.type,
+      amount: doc.amount,
+      category: doc.category,
+      description: doc.description,
+      transaction_date: doc.transaction_date,
+      created_at: toDateString(doc._creationTime),
+    })) as Transaction[];
+  }, [txData]);
+
+  const loading = txData === undefined;
+
+  const totalIncome = useMemo(
+    () => transactions.filter((t) => t.type === "income").reduce((a, t) => a + t.amount, 0),
+    [transactions]
+  );
+  const totalExpense = useMemo(
+    () => transactions.filter((t) => t.type === "expense").reduce((a, t) => a + t.amount, 0),
+    [transactions]
+  );
 
   const addTransaction = useCallback(
-    async (
-      type: "income" | "expense",
-      amount: number,
-      category: string,
-      description: string = ""
-    ) => {
-      const t: Transaction = {
-        id: Date.now().toString(),
-        wallet_name: "Cash",
+    async (type: "income" | "expense", amount: number, category: string, description?: string) => {
+      await addTxMut({
         type,
         amount,
         category,
-        description,
-        transaction_date: new Date().toISOString().split("T")[0],
-        created_at: "",
-      };
-      setTx((p) => [t, ...p]);
+        description: description ?? "",
+      });
     },
-    []
+    [addTxMut]
   );
 
   const deleteTransaction = useCallback(async (id: string) => {
-    setTx((p) => p.filter((t) => t.id !== id));
-  }, []);
-
-  const totalIncome = tx
-    .filter((t) => t.type === "income")
-    .reduce((a, t) => a + Number(t.amount), 0);
-
-  const totalExpense = tx
-    .filter((t) => t.type === "expense")
-    .reduce((a, t) => a + Number(t.amount), 0);
+    await deleteTxMut({ id: id as Id<"transactions"> });
+  }, [deleteTxMut]);
 
   const updateTransaction = useCallback(
     async (id: string, data: { type?: "income" | "expense"; amount?: number; category?: string; description?: string; transaction_date?: string }) => {
-      setTx((p) =>
-        p.map((t) => (t.id === id ? { ...t, ...data } : t))
-      );
+      await updateTxMut({ id: id as Id<"transactions">, ...data });
     },
-    []
+    [updateTxMut]
   );
 
   return {
-    transactions: tx,
+    transactions,
     loading,
     totalIncome,
     totalExpense,
@@ -744,4 +516,47 @@ export function useTransactions() {
   };
 }
 
+// ─── Habits Hook ───
 
+export function useHabits() {
+  const habitsData = useQuery(api.habits.list);
+  const addHabitMut = useMutation(api.habits.add);
+  const logHabitMut = useMutation(api.habits.log);
+  const removeHabitMut = useMutation(api.habits.remove);
+  const updateHabitMut = useMutation(api.habits.update);
+
+  const habits = useMemo(() => {
+    if (!habitsData) return [];
+    return habitsData.map((doc) => ({
+      id: doc._id,
+      name: doc.name,
+      color: doc.color,
+      icon: doc.icon,
+      logs: doc.logs,
+      streak: doc.streak,
+      longest_streak: doc.longest_streak,
+      created_at: toDateString(doc._creationTime),
+    })) as Habit[];
+  }, [habitsData]);
+
+  const addHabit = useCallback(async (name: string, color: string, icon: string) => {
+    await addHabitMut({ name, color, icon });
+  }, [addHabitMut]);
+
+  const logHabit = useCallback(async (id: string, date: string, done: boolean) => {
+    await logHabitMut({ id: id as Id<"habits">, date, done });
+  }, [logHabitMut]);
+
+  const removeHabit = useCallback(async (id: string) => {
+    await removeHabitMut({ id: id as Id<"habits"> });
+  }, [removeHabitMut]);
+
+  const updateHabit = useCallback(
+    async (id: string, data: { name?: string; color?: string; icon?: string }) => {
+      await updateHabitMut({ id: id as Id<"habits">, ...data });
+    },
+    [updateHabitMut]
+  );
+
+  return { habits, addHabit, logHabit, removeHabit, updateHabit };
+}

@@ -21,6 +21,8 @@ export const add = mutation({
     priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
     due_date: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
+    description: v.optional(v.string()),
+    status: v.optional(v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done"))),
   },
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
@@ -28,12 +30,14 @@ export const add = mutation({
     return await ctx.db.insert("tasks", {
       userId: user._id,
       title: args.title,
-      description: "",
-      status: "todo",
+      description: args.description ?? "",
+      status: args.status ?? "todo",
       priority: args.priority,
       due_date: args.due_date,
       tags: args.tags ?? [],
       subtasks: [],
+      is_pinned: false,
+      order: Date.now(),
     });
   },
 });
@@ -43,7 +47,7 @@ export const updateStatus = mutation({
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
-    await ctx.db.patch(args.id, { status: args.status });
+    await ctx.db.patch(args.id, { status: args.status, updated_at: new Date().toISOString() });
   },
 });
 
@@ -52,7 +56,7 @@ export const updateTags = mutation({
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
-    await ctx.db.patch(args.id, { tags: args.tags });
+    await ctx.db.patch(args.id, { tags: args.tags, updated_at: new Date().toISOString() });
   },
 });
 
@@ -66,7 +70,7 @@ export const toggleSubtask = mutation({
     const subtasks = task.subtasks.map((st) =>
       st.id === args.subtaskId ? { ...st, done: args.done } : st
     );
-    await ctx.db.patch(args.id, { subtasks });
+    await ctx.db.patch(args.id, { subtasks, updated_at: new Date().toISOString() });
   },
 });
 
@@ -78,7 +82,51 @@ export const addSubtask = mutation({
     const task = await ctx.db.get(args.id);
     if (!task) throw new Error("Task not found");
     const subtask = { id: Date.now().toString(), title: args.title, done: false };
-    await ctx.db.patch(args.id, { subtasks: [...task.subtasks, subtask] });
+    await ctx.db.patch(args.id, { subtasks: [...task.subtasks, subtask], updated_at: new Date().toISOString() });
+  },
+});
+
+export const update = mutation({
+  args: {
+    id: v.id("tasks"),
+    title: v.optional(v.string()),
+    priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"))),
+    due_date: v.optional(v.nullable(v.string())),
+    description: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (args.title !== undefined) patch.title = args.title;
+    if (args.priority !== undefined) patch.priority = args.priority;
+    if (args.due_date !== undefined) patch.due_date = args.due_date;
+    if (args.description !== undefined) patch.description = args.description;
+    await ctx.db.patch(args.id, patch);
+  },
+});
+
+export const togglePin = mutation({
+  args: { id: v.id("tasks") },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    const task = await ctx.db.get(args.id);
+    if (!task) throw new Error("Task not found");
+    await ctx.db.patch(args.id, {
+      is_pinned: !task.is_pinned,
+      order: Date.now(),
+      updated_at: new Date().toISOString(),
+    });
+  },
+});
+
+export const reorder = mutation({
+  args: { id: v.id("tasks"), order: v.number() },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    await ctx.db.patch(args.id, { order: args.order, updated_at: new Date().toISOString() });
   },
 });
 

@@ -42,6 +42,8 @@ const schema = defineSchema(
       content: v.string(),
       is_pinned: v.boolean(),
       tags: v.array(v.string()),
+      folder_path: v.string(),
+      updated_at: v.optional(v.string()),
     })
       .index("by_user", ["userId"])
       .index("by_user_pinned", ["userId", "is_pinned"]),
@@ -62,9 +64,14 @@ const schema = defineSchema(
           done: v.boolean(),
         })
       ),
+      is_pinned: v.boolean(),
+      order: v.number(),
+      parent_id: v.optional(v.string()),
+      updated_at: v.optional(v.string()),
     })
       .index("by_user", ["userId"])
-      .index("by_user_status", ["userId", "status"]),
+      .index("by_user_status", ["userId", "status"])
+      .index("by_user_pinned", ["userId", "is_pinned"]),
 
     // Transactions
     transactions: defineTable({
@@ -74,6 +81,7 @@ const schema = defineSchema(
       category: v.string(),
       description: v.string(),
       transaction_date: v.string(),
+      wallet_name: v.string(),
     })
       .index("by_user", ["userId"])
       .index("by_user_date", ["userId", "transaction_date"]),

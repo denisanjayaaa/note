@@ -19,6 +19,7 @@ export const add = mutation({
   args: {
     title: v.string(),
     content: v.string(),
+    folder_path: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
@@ -29,6 +30,8 @@ export const add = mutation({
       content: args.content,
       is_pinned: false,
       tags: [],
+      folder_path: args.folder_path ?? "/",
+      updated_at: new Date().toISOString(),
     });
   },
 });
@@ -38,7 +41,32 @@ export const togglePin = mutation({
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
-    await ctx.db.patch(args.id, { is_pinned: !args.is_pinned });
+    await ctx.db.patch(args.id, { is_pinned: !args.is_pinned, updated_at: new Date().toISOString() });
+  },
+});
+
+export const update = mutation({
+  args: {
+    id: v.id("notes"),
+    title: v.optional(v.string()),
+    content: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (args.title !== undefined) patch.title = args.title;
+    if (args.content !== undefined) patch.content = args.content;
+    await ctx.db.patch(args.id, patch);
+  },
+});
+
+export const updateFolder = mutation({
+  args: { id: v.id("notes"), folder_path: v.string() },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    await ctx.db.patch(args.id, { folder_path: args.folder_path, updated_at: new Date().toISOString() });
   },
 });
 

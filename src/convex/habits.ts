@@ -88,6 +88,24 @@ export const log = mutation({
   },
 });
 
+export const update = mutation({
+  args: {
+    id: v.id("habits"),
+    name: v.optional(v.string()),
+    color: v.optional(v.string()),
+    icon: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    const patch: Record<string, unknown> = {};
+    if (args.name !== undefined) patch.name = args.name;
+    if (args.color !== undefined) patch.color = args.color;
+    if (args.icon !== undefined) patch.icon = args.icon;
+    await ctx.db.patch(args.id, patch);
+  },
+});
+
 export const remove = mutation({
   args: { id: v.id("habits") },
   handler: async (ctx, args) => {
