@@ -1,257 +1,1104 @@
-## Overview
+# Studio Refine — All-in-One Productivity Workspace
 
-This project uses the following tech stack:
-- Vite
-- Typescript
-- React Router v7 (all imports from `react-router` instead of `react-router-dom`)
-- React 19 (for frontend components)
-- Tailwind v4 (for styling)
-- Shadcn UI (for UI components library)
-- Lucide Icons (for icons)
-- Convex (for backend & database)
-- Convex Auth (for authentication)
-- Framer Motion (for animations)
-- Three js (for 3d models)
+A refined workspace combining **Notes, Tasks (Kanban), Finance tracking, Habits, Calendar, Profile analytics, CSV editor, and an embedded Code editor** — all in one clean, responsive web app with persistent real-time data via Convex, email OTP + anonymous auth, AI-powered natural language input for quick creation, and compound-interest savings projection.
 
-All relevant files live in the 'src' directory.
+> **Prompt spec:** This README serves as a complete document to recreate this application from scratch. It covers the full architecture, every component, every data model, routing, auth flow, styling conventions, and edge cases.
 
-Use bun for the package manager.
+---
 
-## Setup
+## Table of Contents
 
-This project is set up already and running on a cloud environment, as well as a convex development in the sandbox.
+1. [Concept & Overview](#1-concept--overview)
+2. [Tech Stack](#2-tech-stack)
+3. [Core Architecture](#3-core-architecture)
+4. [Auth & User System](#4-auth--user-system)
+5. [Data Models (Convex Schema)](#5-data-models-convex-schema)
+6. [Frontend Routes](#6-frontend-routes)
+7. [Modules & Features](#7-modules--features)
+   - 7.1 Landing Page
+   - 7.2 Auth Page
+   - 7.3 Dashboard Shell
+   - 7.4 Command Bar (AI Input)
+   - 7.5 Tasks & Notes (Kanban + Cross-Type Drag)
+   - 7.6 Notes View (Folder Sidebar)
+   - 7.7 Finance / Dompet + Rencana Tabungan
+   - 7.8 Habit Tracker
+   - 7.9 Calendar View
+   - 7.10 Profile View (Heatmaps, Export, User Settings)
+   - 7.11 Global Search
+   - 7.12 CSV Editor
+   - 7.13 StackBlitz Code Editor
+8. [Convex Backend (Query & Mutation Reference)](#8-convex-backend)
+9. [Styling & Theme System](#9-styling--theme-system)
+10. [Key Components Directory](#10-key-components-directory)
+11. [Edge Cases & Important Details](#11-edge-cases--important-details)
+12. [Build & Deploy Notes](#12-build--deploy-notes)
 
-## Environment Variables
+---
 
-The project is set up with project specific CONVEX_DEPLOYMENT and VITE_CONVEX_URL environment variables on the client side.
+## 1. Concept & Overview
 
-The convex server has a separate set of environment variables that are accessible by the convex backend.
+**Studio Refine** is a single-page productivity workspace targeting individual users (not teams). The core philosophy is:
 
-Currently, these variables include auth-specific keys: JWKS, JWT_PRIVATE_KEY, and SITE_URL.
+- **All-in-one:** One app handles notes, tasks, finance, habits, calendar, and more.
+- **AI-native:** A smart command bar accepts natural language input and automatically creates tasks, notes, or transactions using AI parsing (DeepSeek integration).
+- **Persistent & real-time:** Convex backend stores all data per user. All queries are reactive subscriptions — changes reflect instantly across tabs.
+- **Drag-and-drop cross-type convertible:** Notes can be dragged into a Kanban column (becoming a task), and tasks can be dragged into the notes panel (becoming a note).
+- **Simple for beginners, powerful for power users:** Quick-add buttons, emoji icons, natural language parsing make it accessible; compound interest projections, goal planning, and heatmaps provide depth.
+- **Deploy-ready:** The app is fully functional with Convex backend, Convex Auth (email OTP + anonymous), and a production Vite build.
 
+---
 
-# Using Authentication (Important!)
+## 2. Tech Stack
 
-You must follow these conventions when using authentication.
+| Layer | Technology | Version / Notes |
+|---|---|---|
+| **Runtime** | Bun | v1.3.14 |
+| **Framework** | React 19 | `react`, `react-dom` |
+| **Bundler** | Vite 7 | with `@vitejs/plugin-react` |
+| **Language** | TypeScript | strict mode |
+| **Routing** | React Router v7 | import from `react-router`, not `react-router-dom` |
+| **Backend / Database** | Convex | real-time reactive queries + mutations |
+| **Auth** | Convex Auth | email OTP + anonymous providers |
+| **UI Components** | shadcn/ui | Radix-based primitives, customized |
+| **Styling** | Tailwind CSS v4 | with `tw-animate-css`, oklch color space |
+| **Animations** | Framer Motion | page transitions, drag feedback, hover effects |
+| **Icons** | Lucide React | v0.555 |
+| **Drag-and-Drop** | `@hello-pangea/dnd` | v18 — Kanban columns, note reorder, category reorder, cross-type drag |
+| **Charts** | Recharts | Line, Bar, Area, Pie charts in Dashboard, Finance |
+| **Date Picker** | `react-day-picker` | v9.13, wrapped as `DatePickerPopover` |
+| **Toast** | Sonner | shadcn/ui wrapper |
+| **Code Editor** | StackBlitz SDK | embedded WebContainer for code editing |
+| **AI Parser** | DeepSeek API | natural language -> structured task/note/transaction |
+| **CSS** | Tailwind v4 + `tw-animate-css` | custom "Studio" theme |
 
-## Auth is already set up.
+### Package manager
 
-All convex authentication functions are already set up. The auth currently uses email OTP and anonymous users, but can support more.
+```bash
+bun install
+```
 
-The email OTP configuration is defined in `src/convex/auth/emailOtp.ts`. DO NOT MODIFY THIS FILE.
+### Key scripts
 
-Also, DO NOT MODIFY THESE AUTH FILES: `src/convex/auth.config.ts` and `src/convex/auth.ts`.
+```json
+{
+  "dev": "vite",
+  "build": "NODE_OPTIONS='--max-old-space-size=1024' tsc -b && vite build",
+  "preview": "vite preview"
+}
+```
 
-## Using Convex Auth on the backend
+> **Note:** Build requires `NODE_OPTIONS=--max-old-space-size=1024` because 4000+ modules can OOM with default Node memory limit.
 
-On the `src/convex/users.ts` file, you can use the `getCurrentUser` function to get the current user's data.
+---
 
-## Using Convex Auth on the frontend
+## 3. Core Architecture
 
-The `/auth` page is already set up to use auth. Navigate to `/auth` for all log in / sign up sequences.
+```
+src/
+├── convex/              # Convex backend (auth, schema, queries, mutations)
+│   ├── auth/            # emailOtp provider config
+│   ├── _generated/      # Auto-generated by `bun convex dev --once`
+│   ├── schema.ts        # Database schema
+│   ├── auth.ts          # ConvexAuth setup (READ ONLY)
+│   ├── auth.config.ts   # Auth config (READ ONLY)
+│   ├── users.ts         # currentUser query, getCurrentUser helper, updateProfile, updateEmail
+│   ├── tasks.ts         # list, add, updateStatus, updateTags, toggleSubtask, addSubtask, update, togglePin, reorder, remove
+│   ├── notes.ts         # list, add, togglePin, update, updateFolder, remove
+│   ├── transactions.ts  # list, add, update, remove
+│   ├── habits.ts        # list, add, log (with streak calc), update, remove
+│   └── http.ts          # HTTP router (auth routes)
+├── hooks/
+│   └── use-auth.ts      # useAuth hook wrapping ConvexAuth + currentUser query
+├── lib/
+│   ├── deepseek.ts      # AI natural language parser (DeepSeek API)
+│   ├── gemini.ts        # Alternative AI parser (Gemini API — not primary)
+│   └── utils.ts         # cn() helper
+├── components/
+│   ├── ui/              # shadcn/ui primitives (50+ components)
+│   └── omnitask/        # App-specific components
+├── pages/
+│   ├── Landing.tsx       # Public landing page
+│   ├── Auth.tsx          # Sign in / Sign up (email OTP + anonymous)
+│   ├── Dashboard.tsx     # Authenticated shell with sidebar navigation
+│   └── NotFound.tsx      # 404 page
+├── main.tsx              # Entry point: providers, routes, toaster
+├── index.css             # Global styles + Studio theme variables
+└── instrumentation.tsx   # Error boundary + reporting
+```
 
-You MUST use this hook to get user data. Never do this yourself without the hook:
+### Data Flow Pattern
+
+```
+User Action → React Hook (useTasks/useNotes/useTransactions/useHabits)
+  → Convex mutation (api.X.Y) → Convex backend (handler)
+  → Database update → Convex query subscription
+  → Component re-render (reactive)
+```
+
+**Important:** All data flows through Convex hooks. No client-side `useState` for persistent data. `useTasks()`, `useNotes()`, `useTransactions()`, `useHabits()` are custom hooks defined in `data.tsx` that wrap `useQuery` and `useMutation`.
+
+---
+
+## 4. Auth & User System
+
+### Providers
+
+- **Email OTP** — user enters email → receives 6-digit code → enters code → authenticated
+- **Anonymous** — "Continue as Guest" button → creates anonymous session → can convert later
+
+### Auth Files (DO NOT MODIFY)
+
+| File | Purpose |
+|---|---|
+| `src/convex/auth.ts` | `convexAuth()` setup with providers |
+| `src/convex/auth.config.ts` | Auth configuration |
+| `src/convex/auth/emailOtp.ts` | Email OTP provider config |
+
+### Auth Flow
+
+1. User visits `/auth`
+2. If already authenticated → redirect to `/dashboard`
+3. **Sign in form:** Email input + submit → OTP sent
+4. **OTP form:** 6-digit input → verify → redirect to `/dashboard`
+5. "Continue as Guest" → anonymous auth → redirect to `/dashboard`
+6. **Sign out:** Dashboard Profile → Danger Zone → Sign Out
+
+### useAuth Hook
+
 ```typescript
 import { useAuth } from "@/hooks/use-auth";
 
 const { isLoading, isAuthenticated, user, signIn, signOut } = useAuth();
 ```
 
-## Protected Routes
+- `isLoading` = true during auth state loading OR user query loading
+- `isAuthenticated` = from `useConvexAuth()`
+- `user` = full user document from Convex (or undefined while loading, or null if not authed)
+- Dashboard redirects to `/auth` if `!isAuthenticated && !isLoading`
 
-When protecting a page, use the auth hooks to check for authentication and redirect to /auth.
+### Users Table Fields
 
-## Auth Page
+| Field | Type | Notes |
+|---|---|---|
+| `name` | `v.optional(v.string())` | Display name |
+| `username` | `v.optional(v.string())` | Unique, indexed, validated (min 3 chars, alphanumeric + `_` + `-`) |
+| `image` | `v.optional(v.string())` | Avatar URL |
+| `email` | `v.optional(v.string())` | Lowercase, indexed, verified via OTP |
+| `emailVerificationTime` | `v.optional(v.number())` | Timestamp of email verification |
+| `isAnonymous` | `v.optional(v.boolean())` | True for guest accounts |
+| `role` | `v.optional(roleValidator)` | Not currently used (default: user) |
 
-The auth page is defined in `src/pages/Auth.tsx`. Redirect authenticated pages and sign in / sign up to /auth.
+### User Mutations
 
-## Authorization
+| Mutation | File | Args | Description |
+|---|---|---|---|
+| `updateProfile` | `users.ts` | `{ name?, image?, username? }` | Update name, avatar, or username (with uniqueness check + validation) |
+| `updateEmail` | `users.ts` | `{ email }` | Update email (after OTP verification) |
 
-You can perform authorization checks on the frontend and backend.
+---
 
-On the frontend, you can use the `useAuth` hook to get the current user's data and authentication state.
+## 5. Data Models (Convex Schema)
 
-You should also be protecting queries, mutations, and actions at the base level, checking for authorization securely.
+Defined in `src/convex/schema.ts`. All tables have `_id` (auto) and `_creationTime` (auto-indexed).
 
-## Adding a redirect after auth
+### `notes`
 
-In `src/main.tsx`, you must add a redirect after auth URL to redirect to the correct dashboard/profile/page that should be created after authentication.
-
-# Frontend Conventions
-
-You will be using the Vite frontend with React 19, Tailwind v4, and Shadcn UI.
-
-Generally, pages should be in the `src/pages` folder, and components should be in the `src/components` folder.
-
-Shadcn primitives are located in the `src/components/ui` folder and should be used by default.
-
-## Page routing
-
-Your page component should go under the `src/pages` folder.
-
-When adding a page, update the react router configuration in `src/main.tsx` to include the new route you just added.
-
-## Shad CN conventions
-
-Follow these conventions when using Shad CN components, which you should use by default.
-- Remember to use "cursor-pointer" to make the element clickable
-- For title text, use the "tracking-tight font-bold" class to make the text more readable
-- Always make apps MOBILE RESPONSIVE. This is important
-- AVOID NESTED CARDS. Try and not to nest cards, borders, components, etc. Nested cards add clutter and make the app look messy.
-- AVOID SHADOWS. Avoid adding any shadows to components. stick with a thin border without the shadow.
-- Avoid skeletons; instead, use the loader2 component to show a spinning loading state when loading data.
-
-
-## Landing Pages
-
-You must always create good-looking designer-level styles to your application. 
-- Make it well animated and fit a certain "theme", ie neo brutalist, retro, neumorphism, glass morphism, etc
-
-Use known images and emojis from online.
-
-If the user is logged in already, show the get started button to say "Dashboard" or "Profile" instead to take them there.
-
-## Responsiveness and formatting
-
-Make sure pages are wrapped in a container to prevent the width stretching out on wide screens. Always make sure they are centered aligned and not off-center.
-
-Always make sure that your designs are mobile responsive. Verify the formatting to ensure it has correct max and min widths as well as mobile responsiveness.
-
-- Always create sidebars for protected dashboard pages and navigate between pages
-- Always create navbars for landing pages
-- On these bars, the created logo should be clickable and redirect to the index page
-
-## Animating with Framer Motion
-
-You must add animations to components using Framer Motion. It is already installed and configured in the project.
-
-To use it, import the `motion` component from `framer-motion` and use it to wrap the component you want to animate.
-
-
-### Other Items to animate
-- Fade in and Fade Out
-- Slide in and Slide Out animations
-- Rendering animations
-- Button clicks and UI elements
-
-Animate for all components, including on landing page and app pages.
-
-## Three JS Graphics
-
-Your app comes with three js by default. You can use it to create 3D graphics for landing pages, games, etc.
-
-
-## Colors
-
-You can override colors in: `src/index.css`
-
-This uses the oklch color format for tailwind v4.
-
-Always use these color variable names.
-
-Make sure all ui components are set up to be mobile responsive and compatible with both light and dark mode.
-
-Set theme using `dark` or `light` variables at the parent className.
-
-## Styling and Theming
-
-When changing the theme, always change the underlying theme of the shad cn components app-wide under `src/components/ui` and the colors in the index.css file.
-
-Avoid hardcoding in colors unless necessary for a use case, and properly implement themes through the underlying shad cn ui components.
-
-When styling, ensure buttons and clickable items have pointer-click on them (don't by default).
-
-Always follow a set theme style and ensure it is tuned to the user's liking.
-
-## Toasts
-
-You should always use toasts to display results to the user, such as confirmations, results, errors, etc.
-
-Use the shad cn Sonner component as the toaster. For example:
-
+```typescript
+defineTable({
+  userId: v.id("users"),      // Owner
+  title: v.string(),           // Note title
+  content: v.string(),         // Note body text
+  is_pinned: v.boolean(),      // Pinned to top
+  tags: v.array(v.string()),   // Array of tag strings
+  folder_path: v.string(),     // e.g. "/", "Work", "Personal", "Ideas"
+  updated_at: v.optional(v.string()), // ISO timestamp
+})
+.index("by_user", ["userId"])
+.index("by_user_pinned", ["userId", "is_pinned"])
 ```
-import { toast } from "sonner"
 
-import { Button } from "@/components/ui/button"
-export function SonnerDemo() {
-  return (
-    <Button
-      variant="outline"
-      onClick={() =>
-        toast("Event has been created", {
-          description: "Sunday, December 03, 2023 at 9:00 AM",
-          action: {
-            label: "Undo",
-            onClick: () => console.log("Undo"),
-          },
-        })
-      }
-    >
-      Show Toast
-    </Button>
-  )
+### `tasks`
+
+```typescript
+defineTable({
+  userId: v.id("users"),
+  title: v.string(),
+  description: v.string(),
+  status: v.union(v.literal("todo"), v.literal("in_progress"), v.literal("done")),
+  priority: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
+  due_date: v.optional(v.string()),     // ISO date string "YYYY-MM-DD"
+  tags: v.array(v.string()),
+  subtasks: v.array(
+    v.object({
+      id: v.string(),
+      title: v.string(),
+      done: v.boolean(),
+    })
+  ),
+  is_pinned: v.boolean(),
+  order: v.number(),                    // For manual reordering
+  parent_id: v.optional(v.string()),    // Not used currently
+  updated_at: v.optional(v.string()),
+})
+.index("by_user", ["userId"])
+.index("by_user_status", ["userId", "status"])
+.index("by_user_pinned", ["userId", "is_pinned"])
+```
+
+### `transactions`
+
+```typescript
+defineTable({
+  userId: v.id("users"),
+  type: v.union(v.literal("income"), v.literal("expense")),
+  amount: v.number(),
+  category: v.string(),          // "Food", "Transport", "Salary", "Shopping", "Bills", etc.
+  description: v.string(),
+  transaction_date: v.string(),  // ISO date string "YYYY-MM-DD"
+  wallet_name: v.string(),       // "Cash" (default), "Bank", etc.
+})
+.index("by_user", ["userId"])
+.index("by_user_date", ["userId", "transaction_date"])
+```
+
+### `habits`
+
+```typescript
+defineTable({
+  userId: v.id("users"),
+  name: v.string(),
+  color: v.string(),          // Hex color, e.g. "#ef4444"
+  icon: v.string(),           // Emoji string, e.g. "🔥"
+  logs: v.array(
+    v.object({
+      date: v.string(),       // ISO date string
+      done: v.boolean(),
+      note: v.optional(v.string()),
+    })
+  ),
+  streak: v.number(),         // Current streak (calculated server-side)
+  longest_streak: v.number(), // All-time best streak
+})
+.index("by_user", ["userId"])
+```
+
+### Frontend TypeScript Types
+
+Located in `src/components/omnitask/data.tsx`:
+
+```typescript
+interface Note {
+  id: string;
+  title: string; content: string;
+  is_pinned: boolean; folder_path: string; tags: string[];
+  created_at: string; updated_at: string;
+}
+
+interface Task {
+  id: string;
+  title: string; description: string;
+  status: string; priority: "low" | "medium" | "high";
+  due_date: string | null;
+  parent_id: string | null;
+  created_at: string; updated_at: string;
+  tags: string[]; subtasks: Subtask[];
+  is_pinned: boolean; order: number;
+}
+
+interface Transaction {
+  id: string;
+  wallet_name: string;
+  type: "income" | "expense";
+  amount: number; category: string;
+  description: string; transaction_date: string;
+  created_at: string;
+}
+
+interface Habit {
+  id: string;
+  name: string; color: string; icon: string;
+  logs: { date: string; done: boolean; note?: string }[];
+  streak: number; longest_streak: number;
+  created_at: string;
 }
 ```
 
-Remember to import { toast } from "sonner". Usage: `toast("Event has been created.")`
+---
 
-## Dialogs
+## 6. Frontend Routes
 
-Always ensure your larger dialogs have a scroll in its content to ensure that its content fits the screen size. Make sure that the content is not cut off from the screen.
+Defined in `src/main.tsx`:
 
-Ideally, instead of using a new page, use a Dialog instead. 
+| Path | Component | Auth Required | Description |
+|---|---|---|---|
+| `/` | `Landing` | No | Public landing page with hero, features grid |
+| `/auth` | `AuthPage` | No (redirects if authed) | Sign in / Sign up with email OTP + anonymous |
+| `/dashboard` | `Dashboard` | Yes (redirects to /auth) | Main authenticated app shell |
+| `*` | `NotFound` | No | 404 page |
 
-# Using the Convex backend
+### Dashboard routing
 
-You will be implementing the convex backend. Follow your knowledge of convex and the documentation to implement the backend.
+Dashboard is a **single-page shell** with tab-based navigation (not URL routes). The `activeTab` state determines which view is shown:
 
-## The Convex Schema
-
-You must correctly follow the convex schema implementation.
-
-The schema is defined in `src/convex/schema.ts`.
-
-Do not include the `_id` and `_creationTime` fields in your queries (it is included by default for each table).
-Do not index `_creationTime` as it is indexed for you. Never have duplicate indexes.
-
-
-## Convex Actions: Using CRUD operations
-
-When running anything that involves external connections, you must use a convex action with "use node" at the top of the file.
-
-You cannot have queries or mutations in the same file as a "use node" action file. Thus, you must use pre-built queries and mutations in other files.
-
-You can also use the pre-installed internal crud functions for the database:
-
-```ts
-// in convex/users.ts
-import { crud } from "convex-helpers/server/crud";
-import schema from "./schema.ts";
-
-export const { create, read, update, destroy } = crud(schema, "users");
-
-// in some file, in an action:
-const user = await ctx.runQuery(internal.users.read, { id: userId });
-
-await ctx.runMutation(internal.users.update, {
-  id: userId,
-  patch: {
-    status: "inactive",
-  },
-});
+```typescript
+type ActiveTab = "dashboard" | "notes" | "tasks" | "calendar" | "finance" | "csv" | "profile" | "habits" | "code";
 ```
 
+Sidebar navigation items:
+- Dashboard (`LayoutDashboard`)
+- Tasks & Notes (`CheckSquare`)
+- Calendar (`CalendarDays`)
+- Finance (`Wallet`)
+- CSV Editor (`FileSpreadsheet`)
+- Habits (`Target`)
+- Code (`Code2`)
+- Profile (`User` — at bottom, separated)
 
-## Common Convex Mistakes To Avoid
+---
 
-When using convex, make sure:
-- Document IDs are referenced as `_id` field, not `id`.
-- Document ID types are referenced as `Id<"TableName">`, not `string`.
-- Document object types are referenced as `Doc<"TableName">`.
-- Keep schemaValidation to false in the schema file.
-- You must correctly type your code so that it passes the type checker.
-- You must handle null / undefined cases of your convex queries for both frontend and backend, or else it will throw an error that your data could be null or undefined.
-- Always use the `@/folder` path, with `@/convex/folder/file.ts` syntax for importing convex files.
-- This includes importing generated files like `@/convex/_generated/server`, `@/convex/_generated/api`
-- Remember to import functions like useQuery, useMutation, useAction, etc. from `convex/react`
-- NEVER have return type validators.
+## 7. Modules & Features
+
+### 7.1 Landing Page (`src/pages/Landing.tsx`)
+
+- **Mouse-following ambient gradient** (radial gradient follows cursor)
+- **Grid pattern overlay** for texture
+- Minimal header with logo "O" + "Workspace" + Sign In / Get Started buttons
+- Hero section: tagline "A refined space for *your work*", subtitle, CTA buttons
+- **4 feature cards** in 2x2 grid (Notes, Tasks, Finance, All-in-One) with icons
+- All elements animate in with Framer Motion staggered entrance
+- Footer with copyright
+
+### 7.2 Auth Page (`src/pages/Auth.tsx`)
+
+- Logo image at top
+- Card with email input + submit button (sends OTP)
+- "Or" separator + "Continue as Guest" button
+- OTP screen: 6-digit input (InputOTP component), verify button
+- Error handling: email format validation, wrong OTP message
+- Loading states on both submit buttons
+- "Send by freebuff.com" footer link
+
+### 7.3 Dashboard Shell (`src/pages/Dashboard.tsx`)
+
+- **Auth guard:** Redirects to `/auth` if not authenticated, shows spinner while loading
+- **Sidebar:** Animated slide-in/out (Framer Motion spring animation) with nav items
+- **Top bar:** Menu button (toggle sidebar), global search button (⌘F / Win+F), theme toggle
+- Command bar section at top of non-profile/non-csv/non-code pages
+- Content area with `AnimatePresence mode="wait"` tab switching
+- Global Search modal (⌘F / Ctrl+F)
+- AI Assistant floating component
+- Theme Provider wraps everything
+
+**Loading state:** Spinner `animate-spin` border, centered on screen while auth loads.
+
+**Empty state:** All data is empty initially (no seed data). The Command Bar and + buttons are the primary ways to create data.
+
+### 7.4 Command Bar (AI Input) (`src/components/omnitask/CommandBar.tsx`)
+
+The Command Bar is the **primary data creation interface**. It appears at the top of key pages.
+
+#### States
+
+| State | Visual |
+|---|---|
+| **Idle** | Input with placeholder text, example hints below, attachment buttons |
+| **Loading** | Animated pulse ring, spinner icon, "Memproses..." text |
+| **Error** | Red ring, error message with AlertCircle icon, auto-clear after 3s |
+| **Success** | Green ring, check icon, editable preview panel opens |
+
+#### Input Flow
+
+1. User types natural language (Indonesian or English supported)
+2. Press Enter → calls `parseNaturalInput(text)` (DeepSeek API)
+3. Returns `ParsedIntent` with optional `{ note, task, transaction, summary }`
+4. Preview panel opens (editable cards): user can edit fields, add more items, or delete items
+5. User clicks "Confirm & Create N Items" → items are created via respective hooks
+6. Input resets, focus returns
+
+#### AI Parsed Types
+
+```typescript
+interface ParsedTask {
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high";
+  due_date: string | null;
+  status: "todo" | "in_progress";
+}
+
+interface ParsedNote {
+  title: string;
+  content: string;
+}
+
+interface ParsedTransaction {
+  type: "income" | "expense";
+  amount: number;
+  category: string;
+  description: string;
+}
+
+interface ParsedIntent {
+  note?: ParsedNote;
+  task?: ParsedTask;
+  transaction?: ParsedTransaction;
+  summary: string;
+}
+```
+
+#### Editable Preview Cards
+
+- **Note card**: Amber background, FileText icon, editable title + content textarea
+- **Task card**: Sky background, ListChecks icon, editable title + description + priority select + date input + status select
+- **Transaction card**: Emerald background, Wallet icon, editable type (income/expense) + amount + category + description
+
+Each card has a delete button. Users can add more Notes/Tasks/Expenses inline. Items are animated with `AnimatePresence`.
+
+#### Attachment Support
+
+Image, file, and audio attachment buttons with dropdown menu. Attachments appear as chips below input (visual only — not processed by AI).
+
+#### Example Hints
+
+Clickable example buttons that pre-fill the input:
+- 📅 Meeting 10 Jul 2026, high
+- 💰 Gaji 15 juta
+- 💡 Ide aplikasi
+
+### 7.5 Tasks & Notes (Kanban + Drag-and-Drop) (`src/components/omnitask/TasksNotesView.tsx`)
+
+This is the **most complex component** in the app — a combined Kanban board + Notes panel with cross-type drag-and-drop.
+
+#### Kanban Board
+
+- **Columns:** "To Do", "In Progress", "Done" (default), with draggable custom columns via Category Manager
+- **Column header:** Drag handle (reorder columns via HTML5 native drag), dot indicator, label, task count badge
+- **Empty column:** "Drop tasks or notes here" placeholder
+- **Drag feedback:** Card rotates 1°, scales to 1.02, casts large shadow, ring highlight — only the card moves, frame stays in place
+
+#### Task Card (`TaskCard` component)
+
+| Element | Visible | Interaction |
+|---|---|---|
+| Grippable drag handle | On hover (opacity transition) | Drag to reorder |
+| **Clickable title** | Always | **Toggles description expand** — shows/hides full description inline |
+| **Description** | Preview 2 lines (`line-clamp-2`), expands on title click | Click title to expand/collapse |
+| **Tags** (e.g. frontend, design) | Always, as pill badges | Tag dropdown via 🏷️ icon button (right side) |
+| **Priority** badge | Always, colored (red/amber/gray) | **Click to cycle:** High → Medium → Low → High... |
+| **Due date** | Always | **Click to open DatePickerPopover** — pick or clear date |
+| Pin button 📌 | Always (red fill if pinned) | Toggle pin (red left border strip on pinned cards) |
+| Edit button ✏️ | Always | Opens Edit Task modal |
+| Tag button 🏷️ | Always | Opens tag selector dropdown |
+| Delete button 🗑️ | Always | Deletes task |
+| **Red left border** (3px) | Only when pinned (`border-l-red-500`) | Visual indicator for pinned tasks |
+
+**Expand behavior:** Click title → `expanded` state toggles. Description goes from `line-clamp-2` (2 lines with ellipsis) to full text. Tags, priority, and date are always visible regardless of expand state. Animation done via `AnimatePresence` (height transition).
+
+**Priority colors:**
+- `high`: `bg-red-100 text-red-700`
+- `medium`: `bg-amber-100 text-amber-700`
+- `low`: `bg-gray-100 text-gray-600`
+
+**Overdue detection:** If `due_date` is in the past and status is not "done", the date text is red and bold.
+
+#### Notes Panel (right sidebar)
+
+- Collapsible section with "Notes" header and count badge
+- **Draggable notes** (via `@hello-pangea/dnd`) — reorder internally or drag to Kanban columns
+- **Note card:** Clickable title → expand/collapse content (like tasks), folder path shown, edit/pin/delete on hover
+- Pinned notes show amber left border and amber background tint
+- Notes are sorted: pinned first, then by creation order
+
+#### Cross-Type Drag-and-Drop
+
+| Source → Destination | Behavior |
+|---|---|
+| **Note → Task column** | Creates a new task from note: title = note title, description = note content. Original note is **deleted** (moved, not copied). |
+| **Task → Notes panel** | Creates a new note from task: title = task title, content = priority info + due date + description. Original task is **deleted**. |
+| **Task → Task column** (same status) | Reorder tasks within column (calls `reorderTask` for each affected task) |
+| **Task → Task column** (different status) | Updates task status, moves to destination column |
+| **Note ↔ Note** (in notes panel) | Visual reorder only (no reorder persisted yet) |
+
+**Edge case:** If a note is dragged onto a column where it was the last item and the column doesn't exist, it falls back to "todo".
+
+#### Category Manager
+
+- Toggle via "Columns" button (gear icon)
+- Shows all columns as a draggable list
+- **Add column:** Enter name + pick color dot → "Add" button
+- **Rename column:** Click pencil icon → inline edit form → Save/Cancel
+- **Delete column:** Click X → only possible if more than 1 column remains → tasks in deleted column move to first remaining column
+- **Reorder columns:** Drag via GripVertical handle → affects grid layout order
+- **11 color options** available from `CATEGORY_COLORS` array
+
+#### AI Smart Add (inline form)
+
+A simplified AI input below the header:
+- Input with Sparkles icon
+- "AI Add" button → calls `parseNaturalInput` 
+- Creates task + note (or whichever AI detects)
+- States: loading (pulse amber), success (green check + message), error (red message)
+- Falls back to creating both a note and task manually on error
+
+#### Quick-add Forms
+
+- **Task form:** Title + Priority select + DatePicker + Add/Cancel buttons
+- **Note form:** Title textarea + content textarea + Save/Cancel buttons
+- Both animate in/out with AnimatePresence
+
+#### Edit Task Modal
+
+Modal overlay with:
+- Title input (text)
+- Description textarea
+- Priority select (Low/Medium/High)
+- Date picker (DatePickerPopover)
+- Save (with Check icon) + Cancel buttons
+- Backdrop blur + click-to-close overlay
+
+#### Empty State
+
+- Two-column layout shows columns with empty placeholders reading "Drop tasks or notes here"
+- Notes panel shows "No notes yet"
+- Active tasks count shown in header (e.g., "3 active tasks · 1 done · 5 notes")
+
+### 7.6 Notes View (`src/components/omnitask/NotesView.tsx`)
+
+A full-page notes manager with folder sidebar.
+
+#### Folder Sidebar (left, 224px, hidden on mobile)
+
+- "Folders" header with + button (add folder)
+- **All Notes** filter (default)
+- **Folder list:** Each folder shows name + count badge
+- Folder hover: Rename (pencil) + Delete (trash) buttons appear
+- **Active folder:** Highlighted with accent background
+- **Rename:** Inline input on folder click → Save on blur/enter, Escape to cancel
+- **Add folder form:** Expandable input below header, auto-focus
+
+#### Notes Content
+
+- **New Note button:** Toggles form at top
+- **New Note form:** Title (style: border-0, large font) + content textarea + folder selector dropdown + Save/Cancel
+- **Notes list:** Draggable cards (reorder via `@hello-pangea/dnd`)
+- **Note card:** 
+  - Drag handle (on hover)
+  - Clickable title → opens edit mode
+  - Folder badge (if not in root and not in active folder filter)
+  - Content preview (2 lines, `line-clamp-2`)
+  - Hover actions: Edit, Pin, Delete
+  - Pinned cards: amber left border
+- **Edit mode:** Title input + content textarea + folder move selector + Save/Cancel buttons
+  - Cmd+Enter or Ctrl+Enter to save
+  - Escape to cancel
+
+**Empty state:** 
+- Folder filtered: "No notes in 'FolderName'"
+- No notes at all: Folder icon + message
+
+### 7.7 Finance / Dompet + Rencana Tabungan (`src/components/omnitask/FinanceView.tsx`)
+
+Two-section finance module accessible via top segmented tabs.
+
+#### Section 1: Dompet (Wallet)
+
+**Summary Card (green gradient):**
+- Large "Saldo" (balance) text
+- Rp amount in bold
+- Income and expense totals with up/down arrow icons
+
+**Quick Add Form (toggle with "Catat" button):**
+- **Natural input:** Text field with examples (Indonesian), Sparkles icon
+  - Parses "makan siang 25rb" → Expense, Food, Rp 25,000
+  - Parses "gaji 15jt" → Income, Salary, Rp 15,000,000
+  - Shows live preview of parsed result below input
+  - Submit via Enter key or "Tambah" button
+- **Quick amount buttons:** Rp 10rb, 25rb, 50rb, 100rb, 500rb, 1jt
+- **Quick category buttons:** Makan 🍔, Bensin ⛽, Belanja 🛍️, Tagihan ⚡, Kesehatan ❤️, Lainnya 📦
+  - Each button auto-creates a transaction with the selected amount (default 25rb if none selected)
+- **Manual form** (if quick amount selected): Type toggle (expense/income), category dropdown, description input
+
+**Finance Parser (`parseFinanceInput`):**
+- Built-in, no external API needed
+- Understands Indonesian: "rb/ribu/k" → ×1000, "jt/juta" → ×1,000,000
+- Detects income words ("gaji", "salary", "bonus", "pemasukan", etc.)
+- Detects expense words ("makan", "bensin", "belanja", "bayar", etc.)
+- Auto-categorizes: Food, Transport, Shopping, Bills, Health, Education, Salary, etc.
+- Returns `{ type, amount, category, description }`
+
+**Tab Filter:** Semua / 💰 Pemasukan / 💸 Pengeluaran
+
+**Transaction List:**
+- Grouped by date: "Hari Ini", "Kemarin", "12 Jul 2026", etc.
+- Each item: Emoji icon (🍔 ⛽ 🛍️ ⚡ etc.) + description + category + amount (green for income, red for expense)
+- Delete button on hover (trash icon)
+
+**Empty state:** Wallet icon + "Belum ada transaksi" text + hint to click "Catat"
+
+#### Section 2: Rencana Tabungan (Savings Projection)
+
+Full component in `src/components/omnitask/SavingsProjection.tsx`.
+
+**Summary Cards (3):**
+1. Total Tabungan (with interest) — violet gradient card, largest
+2. Tabungan Tanpa Bunga — neutral card, shows monthly saving
+3. Bunga Didapatkan — green text, shows interest rate
+
+**Settings Panel (toggle with ⚙️):**
+- Tabungan per bulan (input number)
+- Saldo awal (input number)
+- Bunga % per tahun (input number with % suffix, 0-100, step 0.5)
+- Durasi tahun (input number with "thn" suffix, 1-50)
+- "Pakai data aktual" button → auto-fills from actual transactions
+
+**Chart (Bar or Area, toggleable):**
+- Shows yearly projection comparison: "Dengan Bunga" (violet) vs "Tanpa Bunga" (gray)
+- Y-axis formatted as RpXjt (millions)
+- Custom tooltip showing year, both values formatted
+
+**Yearly Breakdown Table:**
+- Collapsible `<details>` element
+- Table: Tahun, Tabungan/Bulan, Tanpa Bunga, Dengan Bunga, Bunga
+- Sticky header, scrollable body
+- Hover highlight on rows
+
+**Goal Planning:**
+- Add goal form: Name + Target amount + Add button
+- Goal cards: Name, target amount, "Tercapai ✅" or "Butuh waktu lebih ⏳" badge
+- Progress bar (current balance vs target)
+- Projection: years to achieve, total saving at achievement
+- Delete goal button
+
+**Financial Tips:**
+- Amber info box with 💡 icon
+- Dynamic tips based on saving rate, expense vs income, goal timeline
+
+#### Formulas
+
+```typescript
+// Compound interest (end-of-year compounding)
+cumWithInterest = cumWithInterest * (1 + interestRate / 100) + annualContribution;
+
+// Without interest
+cumWithoutInterest += annualContribution;
+
+// Interest earned
+interestEarned = cumWithInterest - cumWithoutInterest;
+```
+
+### 7.8 Habit Tracker (`src/components/omnitask/HabitTracker.tsx`)
+
+**Stats overview (3 cards):** Total habits, Best streak, Today done (X/Y)
+
+**Add form (toggle with "New Habit" button):**
+- Name input
+- Icon picker (12 emoji options: 🔥 💪 📚 🧘 🏃 🎯 💧 🌱 🎨 ✍️ 🧠 ☕)
+- Color picker (8 hex colors)
+- Create/Cancel buttons
+
+**Habit card:**
+- Icon + name + streak info (🔥 X day streak, 🏆 Best: Y)
+- **30-day mini heatmap** (30 thin vertical bars): green = done, red = missed, gray = no data
+- Check/uncheck button (circle icon → green checkmark)
+- Detail expand (📊 button): 
+  - Full monthly calendar with clickable day cells
+  - Stats grid: Total Done, Current Streak, Best Streak
+- Edit button (pencil icon) → EditHabitModal (name + icon + color)
+- Delete button
+
+**Streak calculation** (server-side in `habits.ts`):
+- Filter done logs, sort descending by date
+- Check if most recent log is today or yesterday (otherwise streak = 0)
+- Count consecutive days backward from most recent
+
+**Empty state:** Target icon + "No habits yet. Start tracking your daily routines!"
+
+### 7.9 Calendar View (`src/components/omnitask/CalendarView.tsx`)
+
+- Month navigation (prev/next arrows)
+- Month/year header, day-of-week headers (Sun-Sat)
+- **Calendar grid:** 
+  - Today's date: filled circle
+  - Weekend dates: muted color
+  - Days with tasks: show up to 2 task titles with priority dots (red/amber/blue)
+  - "+N more" if >2 tasks on a day
+- **Click a day:** Show selected date details below grid
+  - Formatted date (e.g., "Wednesday, July 10, 2026")
+  - Task list for that day or "No tasks for this day"
+
+### 7.10 Profile View (`src/components/omnitask/ProfileView.tsx`)
+
+**Profile card:** Banner gradient + avatar (name initial, or uploaded image, or edit mode) + name/email + edit button
+
+**Edit profile inline form:**
+- Name input + Avatar URL input + Save/Cancel
+- Shows "Saving..." state and green checkmark on success
+
+**Identity section:**
+- **Username:** Display + edit (inline), validates (min 3 chars, alphanumeric + `_` + `-`), checks uniqueness via Convex, shows error messages
+- **Email:** Display + edit, sends OTP to new email, verifies OTP, updates email
+- **User ID:** 6-character alphanumeric short ID (generated from Convex ID hash), copy to clipboard button with "Copied!" feedback
+
+**Data Overview (3 cards):** Notes count, Tasks count, Transactions count, Activity Score (sum of all)
+
+**Performance Timeline:** 3 years of contribution heatmaps (This Year, Last Year, Year Before):
+- Custom GitHub-style heatmap grid (7 rows × 53 weeks)
+- Month labels at top
+- Day labels on left (Mon, Wed, Fri)
+- Color intensity: 5 levels of green (from muted to emerald)
+- Target per day (5 actions/day), progress bar showing days above target
+- Stats: Total actions, Average/day, Best day
+
+**Export Data:** Button → downloads JSON file with all data (notes, tasks, transactions)
+
+**Danger Zone:** Sign Out button with red styling
+
+### 7.11 Global Search (`src/components/omnitask/GlobalSearch.tsx`)
+
+- Keyboard shortcut: ⌘F / Ctrl+F
+- Modal with backdrop blur
+- Search input with placeholder text
+- **Module filter chips** (Notes, Tasks, Finance, Habits) — click to filter, or type "notes: query" / "tasks: query" / "finance: query" / "habits: query"
+- **Tab key** cycles through module filters
+- **Arrow key navigation** (up/down) through results
+- **Enter** opens selected result (navigates to the appropriate tab)
+- Results grouped by module:
+  - **Notes:** title match, content match (shows excerpt with context), tag match
+  - **Tasks:** title, description, tags, subtasks, status, priority + subtitle shows due date, status, priority
+  - **Finance:** category, description, amount, date
+  - **Habits:** name match + shows current streak and today's status
+
+**Empty states:**
+- No query: "Search across notes, tasks, transactions, and habits" + instructions
+- No results: "No results found for 'query'"
+
+### 7.12 CSV Editor (`src/components/omnitask/CsvEditor.tsx`)
+
+- **Default data:** 4×3 sample table (Name, Job, City)
+- **Import:** Upload .csv file
+- **Paste area:** Ctrl+V from Excel/Google Sheets (tab-separated auto-detection)
+- **Export:** Downloads CSV file
+- **Actions:** Add Row, Add Column, Copy All (to clipboard) — with feedback states
+- **Editable table:** 
+  - Header row with "Col 1, Col 2..." labels
+  - Copy Column / Delete Column buttons per column
+  - Each cell is an inline editable input
+  - Row actions: Copy Row + Delete Row (on hover)
+  - Copy actions show green checkmark feedback
+
+### 7.13 StackBlitz Code Editor (`src/components/omnitask/StackBlitzView.tsx`)
+
+- Embedded StackBlitz WebContainer via `@stackblitz/sdk`
+- **File list** (folder structure explorer): `src/`, `src/convex/`, `src/components/`, `src/pages/`
+- **Editor toolbar:** Traffic light dots + "StackBlitz WebContainer" label + maximize/minimize button
+- **Maximize mode:** Editor goes full screen (fixed inset)
+- **Loading state:** Spinner + "Loading StackBlitz editor..." + "Open in new tab" fallback
+- **Actions:** "Edit CSS" button (opens project to `index.css`), "Open Full" button (opens in new tab)
+- **Info card:** How it works + tech stack badges
+
+---
+
+## 8. Convex Backend
+
+### How to regenerate types
+
+```bash
+bun convex dev --once
+```
+
+This must be run after any schema or function changes. It generates files in `src/convex/_generated/`.
+
+### Convex Queries
+
+| Query | File | Returns | Notes |
+|---|---|---|---|
+| `currentUser` | `users.ts` | User doc or null | Public, returns current user |
+| `tasks.list` | `tasks.ts` | Task[] | Filtered by current user |
+| `notes.list` | `notes.ts` | Note[] | Filtered by current user |
+| `transactions.list` | `transactions.ts` | Transaction[] | Filtered by current user |
+| `habits.list` | `habits.ts` | Habit[] | Filtered by current user |
+
+All list queries use `.order("desc")` — newest first.
+
+### Convex Mutations
+
+| Mutation | File | Key Args | Behavior |
+|---|---|---|---|
+| `tasks.add` | `tasks.ts` | title, priority, due_date?, tags?, description?, status? | Creates task, returns ID |
+| `tasks.updateStatus` | `tasks.ts` | id, status | Changes status, sets `updated_at` |
+| `tasks.updateTags` | `tasks.ts` | id, tags | Replaces all tags |
+| `tasks.toggleSubtask` | `tasks.ts` | id, subtaskId, done | Toggles subtask completion |
+| `tasks.addSubtask` | `tasks.ts` | id, title | Adds new subtask (id = Date.now()) |
+| `tasks.update` | `tasks.ts` | id, title?, priority?, due_date?, description? | Partial update |
+| `tasks.togglePin` | `tasks.ts` | id | Flips `is_pinned`, updates order to now |
+| `tasks.reorder` | `tasks.ts` | id, order | Sets sort order |
+| `tasks.remove` | `tasks.ts` | id | Deletes task |
+| `notes.add` | `notes.ts` | title, content, folder_path? | Creates note (folder_path defaults to "/") |
+| `notes.togglePin` | `notes.ts` | id, is_pinned | Flips — note: sends current value, server toggles it |
+| `notes.update` | `notes.ts` | id, title?, content? | Partial update |
+| `notes.updateFolder` | `notes.ts` | id, folder_path | Moves note to folder |
+| `notes.remove` | `notes.ts` | id | Deletes note |
+| `transactions.add` | `transactions.ts` | type, amount, category, description?, transaction_date?, wallet_name? | Creates transaction |
+| `transactions.update` | `transactions.ts` | id, type?, amount?, category?, description?, transaction_date?, wallet_name? | Partial update |
+| `transactions.remove` | `transactions.ts` | id | Deletes transaction |
+| `habits.add` | `habits.ts` | name, color, icon | Creates habit with empty logs |
+| `habits.log` | `habits.ts` | id, date, done, note? | Adds/updates log entry, recalculates streak |
+| `habits.update` | `habits.ts` | id, name?, color?, icon? | Partial update |
+| `habits.remove` | `habits.ts` | id | Deletes habit |
+| `users.updateProfile` | `users.ts` | name?, image?, username? | Validates + updates profile |
+| `users.updateEmail` | `users.ts` | email | Updates email (after OTP) |
+
+**Important:** All mutations check `getCurrentUser(ctx)` and throw "Not authenticated" if no user.
+
+### Convex Auth (READ ONLY)
+
+Files `src/convex/auth.ts`, `src/convex/auth.config.ts`, and `src/convex/auth/emailOtp.ts` must NOT be modified. They configure:
+- Email OTP provider (with custom email sender config)
+- Anonymous provider
+
+### Convex HTTP
+
+`src/convex/http.ts` registers auth HTTP routes. Must export default `http`.
+
+---
+
+## 9. Styling & Theme System
+
+### Theme Variables (CSS)
+
+Located in `src/index.css`. Uses oklch color space in Tailwind v4.
+
+**Light theme (Studio Refine):** Warm off-whites, muted neutrals, editorial refinement.
+- Background: `oklch(0.97 0.008 80)` — warm off-white
+- Foreground: `oklch(0.22 0.01 60)` — near-black with warm hue
+- Accent: subtle warm gray
+- Border: `oklch(0.88 0.01 75)`
+
+**Dark theme:** Deep warm charcoal.
+- Background: `oklch(0.18 0.008 60)`
+- Foreground: `oklch(0.93 0.01 80)`
+- Cards: `oklch(0.22 0.01 60)`
+
+### Theme Toggle
+
+`ThemeToggle` component in the dashboard header. Uses `useTheme()` context from `data.tsx`:
+- Reads/writes `localStorage` key `"omnitask-theme"`
+- Respects `prefers-color-scheme` media query on init
+- Toggles `dark` class on `<html>` element
+- Animated icon transition (sun ↔ moon rotate)
+
+### Key Styling Conventions
+
+- **No shadows** — stick to thin borders and subtle hover states
+- **No nested cards** — avoid visual clutter
+- **`tracking-tight font-bold`** for title text
+- **`cursor-pointer`** on all clickable elements
+- **Responsive:** Mobile-first with `lg:`, `md:`, `sm:` breakpoints
+- **`max-w-6xl`, `max-w-4xl`, `max-w-3xl`** centered containers for different pages
+- **Thin borders** (`border-border`), hover states use `bg-accent`
+- **Priority badges:** Rounded, colored backgrounds with uppercase text
+- **Category colors:** 11 dot/color pairs used across columns
+
+---
+
+## 10. Key Components Directory
+
+| Component | File | Purpose |
+|---|---|---|
+| `ThemeProvider` | `data.tsx` | Theme context + localStorage persistence |
+| `useTasks` | `data.tsx` | Task CRUD hook (Convex) |
+| `useNotes` | `data.tsx` | Note CRUD hook (Convex) |
+| `useTransactions` | `data.tsx` | Transaction CRUD hook (Convex) |
+| `useHabits` | `data.tsx` | Habit CRUD hook (Convex) |
+| `CommandBar` | `CommandBar.tsx` | AI natural language input |
+| `TasksNotesView` | `TasksNotesView.tsx` | Combined Kanban + Notes with DnD |
+| `TaskCard` | `TasksNotesView.tsx` | Individual task card in kanban |
+| `NoteCard` | `TasksNotesView.tsx` | Individual note card |
+| `EditTaskModal` | `TasksNotesView.tsx` | Task edit popup |
+| `NotesPanel` | `TasksNotesView.tsx` | Collapsible notes sidebar |
+| `NotesView` | `NotesView.tsx` | Full notes page with folders |
+| `FinanceView` | `FinanceView.tsx` | Dompet + quick add + transaction list |
+| `SavingsProjection` | `SavingsProjection.tsx` | Compound interest + goals |
+| `ExpenseChart` | `ExpenseChart.tsx` | Pie chart breakdown |
+| `HabitTracker` | `HabitTracker.tsx` | Daily habit tracking |
+| `CalendarView` | `CalendarView.tsx` | Monthly calendar |
+| `ProfileView` | `ProfileView.tsx` | User profile + heatmaps |
+| `ContributionHeatmap` | `ProfileView.tsx` | GitHub-style activity heatmap |
+| `DashboardView` | `DashboardView.tsx` | Overview dashboard with charts |
+| `DueDateReminder` | `DueDateReminder.tsx` | Task reminder groups |
+| `GlobalSearch` | `GlobalSearch.tsx` | ⌘F search modal |
+| `CsvEditor` | `CsvEditor.tsx` | Tabular data editor |
+| `StackBlitzView` | `StackBlitzView.tsx` | Embedded code editor |
+| `ThemeToggle` | `ThemeToggle.tsx` | Dark/light mode toggle |
+| `AiAssistant` | `AiAssistant.tsx` | Floating AI assistant |
+| `DatePickerPopover` | `date-picker-popover.tsx` | shadcn Date picker |
+
+---
+
+## 11. Edge Cases & Important Details
+
+### Drag-and-Drop
+
+- **Cross-type drag (Note → Task):** The note is **deleted** after the task is created (it's a conversion, not a copy). The task gets `description = note.content`.
+- **Cross-type drag (Task → Note):** The task is **deleted** after the note is created. Content format: `"Priority: X | Due: Y | Z"` (only non-empty fields).
+- **Same-column reorder:** All tasks in the affected column get their `order` updated to reflect the new sequence.
+- **Column reorder:** Uses HTML5 native drag events (not `@hello-pangea/dnd`). Reorder is persisted via `reorderCategory`.
+- **Pinned tasks sorting:** Pinned tasks appear first (sorted by is_pinned desc), then by priority (high → medium → low), then by order number.
+
+### Task Expand/Collapse
+
+- Default state: **collapsed** (description shows 2 lines via `line-clamp-2`, no overflow)
+- Click title: toggles `expanded` state
+- Description is **always visible** as preview — not hidden entirely
+- Tags, priority, due date are **always visible** regardless of expand state
+
+### Pin Behavior
+
+- **Task pin:** Toggles `is_pinned` field + updates `order` to `Date.now()`. Pinned tasks get a **3px red left border** (`border-l-[3px] border-l-red-500`) and a subtle red background tint.
+- **Note pin:** Toggles `is_pinned`. Pinned notes get an **amber left border** and amber background tint.
+
+### AI Natural Language Parser
+
+- The primary parser is in `src/lib/deepseek.ts` (DeepSeek API key is embedded client-side).
+- Fallback parser `fallbackParse` handles simple patterns without an API call.
+- `parseNaturalInput` first tries DeepSeek API, falls back to `fallbackParse` on error.
+
+### Finance Parser
+
+- Built-in (no API call): `parseFinanceInput` in `FinanceView.tsx`
+- Understands Indonesian number formats: "15rb" = 15,000, "2jt" = 2,000,000, "1,5jt" = 1,500,000
+- Detects income vs expense from keywords
+- Auto-categorizes: Food, Transport, Shopping, Bills, Health, Education, Salary, Freelance, Entertainment, Other
+- Returns null if no amount detected
+
+### Auth Redirect
+
+- After auth, the `AuthPage` component receives `redirectAfterAuth` prop which is "/dashboard"
+- The `RouteSyncer` component in `main.tsx` posts route changes to parent window (for iframe integration)
+- The `handleMessage` listener supports "navigate" events from parent (back/forward)
+
+### Theme Persistence
+
+- Theme is stored in `localStorage` under key `"omnitask-theme"`
+- On first load, respects `prefers-color-scheme`
+- The `ThemeProvider` renders children with `visibility: hidden` until mounted (to prevent flash)
+
+### Category Deletion
+
+- If you delete a category/column, all tasks in that column move to the first remaining column
+- At least 1 column must always exist (delete button hidden when only 1 column)
+
+### Task Deletion
+
+- Deleting a task with **subtasks** removes everything (cascading delete is handled by Convex)
+- The "Done" column is identified by finding the category whose label is "Done"
+
+### Empty States
+
+Every module has empty states:
+- **Dashboard:** Charts show 0 data, metrics show 0
+- **Tasks:** "Drop tasks or notes here" per column
+- **Notes:** "No notes yet" or "No notes in FolderName"
+- **Finance:** "Belum ada transaksi" with hint
+- **Habits:** "No habits yet" with icon
+- **Calendar:** "No tasks for this day" on date click
+- **Search:** Module-specific empty messages
+- **DashboardView:** "No recent activity", "No data yet"
+
+### Loading States
+
+- Auth: Centered spinner while `isLoading`
+- All data hooks: Convex returns `undefined` while loading → components check `loading` flag
+- Command Bar AI: Animated pulse ring + spinner icon
+- Finance parse preview: Debounced, shown after typing
+- StackBlitz embed: Loading overlay until embed loads
+
+### Error States
+
+- **Command Bar error:** Red ring + error message + auto-clear
+- **Auth error:** Red text below input/OTP, "incorrect code" for OTP, "failed to send" for email
+- **Profile username error:** Red inline error in form, toast for "Username already taken"
+- **Profile email OTP error:** Red text below OTP input
+- **Build errors:** OOM during chunk rendering — fixed with `NODE_OPTIONS=--max-old-space-size=1024`
+
+### Convex `togglePin` Edge Case
+
+Note: The `notes.togglePin` mutation receives the **current** `is_pinned` value from the frontend and uses `!args.is_pinned` (server-side toggle). The frontend passes the existing value. This is because the Reactive query may not have updated yet, so the server reads the value sent by the client and negates it.
+
+### Streak Calculation
+
+Server-side in `convex/habits.ts`:
+```typescript
+function calculateStreak(logs): number {
+  // 1. Filter only done logs
+  // 2. Sort by date descending
+  // 3. If most recent is >1 day ago (and not today), streak = 0
+  // 4. Count consecutive days backward
+}
+```
+
+### Savings Projection
+
+- Uses end-of-year compounding: `balance = balance * (1 + rate) + annualContribution`
+- The "Pakai data aktual" button averages the last 3 months of transactions
+- Goal calculation iterates up to 100 years — if not reached, returns `achievable: false`
+- Interest rate is capped between 0 and 100, step 0.5
+
+---
+
+## 12. Build & Deploy Notes
+
+### Build
+
+```bash
+# Development
+bun dev
+
+# Production build (requires increased memory)
+NODE_OPTIONS='--max-old-space-size=1024' bun run build
+
+# Type check only
+bun tsc -b --noEmit
+
+# Convex codegen
+bun convex dev --once
+
+# Build + codegen (for deployment)
+bun convex deploy
+```
+
+### Environment Variables
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `VITE_CONVEX_URL` | Frontend (Vite env) | Convex deployment URL |
+| `CONVEX_DEPLOYMENT` | Backend | Convex deployment ID |
+| `SITE_URL` | Convex backend | Site URL for auth |
+| `JWKS` | Convex backend | Auth key set |
+| `JWT_PRIVATE_KEY` | Convex backend | Auth private key |
+
+> **Important:** Do not edit `.env` files. Use the platform's Key management UI to set environment variables.
+
+### Deploy
+
+```bash
+bun convex deploy
+```
+
+This runs `tsc -b && vite build` with the environment variables set, then deploys the Convex backend.
+
+### Known Build Issues
+
+- **OOM during build:** The `vite build` with 4000+ modules can be killed by the OS. Fixed by setting `NODE_OPTIONS='--max-old-space-size=1024'`.
+- **Chunk size warning:** `dist/assets/index-*.js` may exceed 1000 kB. Can be optimized later with dynamic imports. Not blocking deployment.
+- **Convex codegen requires non-interactive terminal:** `bun convex dev --once` must be run in an environment with valid Convex credentials.
+
+### Tech Debt / Future Improvements
+
+- Dynamic imports for heavy modules (charts, code editor) to reduce initial bundle size
+- Persist note reordering via Convex mutation (currently client-side only)
+- Add seed data script for new users (optional onboarding)
+- Replace embedded DeepSeek API key with environment variable
+- Add pagination to transaction list for large datasets
+- Add loading skeleton states (currently uses spinner only)
