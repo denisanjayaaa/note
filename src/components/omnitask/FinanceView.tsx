@@ -21,6 +21,7 @@ import {
 import type { Transaction } from "./data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SavingsProjection } from "./SavingsProjection";
 
 interface FinanceViewProps {
   transactions: Transaction[];
@@ -205,6 +206,8 @@ function parseFinanceInput(text: string): {
 
 // ─── Main Simplified Finance View ───
 
+type FinanceSection = "dompet" | "rencana";
+
 export function FinanceView({
   transactions,
   totalIncome,
@@ -214,6 +217,7 @@ export function FinanceView({
   deleteTransaction,
   updateTransaction,
 }: FinanceViewProps) {
+  const [section, setSection] = useState<FinanceSection>("dompet");
   const [activeTab, setActiveTab] = useState<"semua" | "pemasukan" | "pengeluaran">("semua");
   const [quickInput, setQuickInput] = useState("");
   const [showQuickForm, setShowQuickForm] = useState(false);
@@ -322,6 +326,41 @@ export function FinanceView({
       animate={{ opacity: 1 }}
       className="mx-auto max-w-3xl space-y-5"
     >
+      {/* ─── Section Tab Bar ─── */}
+      <div className="flex gap-1 rounded-xl bg-muted p-1">
+        <button
+          onClick={() => setSection("dompet")}
+          className={`flex items-center justify-center gap-1.5 flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+            section === "dompet"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Wallet size={14} />
+          Dompet
+        </button>
+        <button
+          onClick={() => setSection("rencana")}
+          className={`flex items-center justify-center gap-1.5 flex-1 rounded-lg px-3 py-2 text-xs font-medium transition-all ${
+            section === "rencana"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <TrendingUp size={14} />
+          Rencana Tabungan
+        </button>
+      </div>
+
+      {section === "rencana" ? (
+        <SavingsProjection
+          transactions={transactions}
+          balance={balance}
+          totalIncome={totalIncome}
+          totalExpense={totalExpense}
+        />
+      ) : (
+        <>
       {/* ─── Header ─── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -688,6 +727,8 @@ export function FinanceView({
           </div>
         )}
       </div>
+        </>
+      )}
     </motion.div>
   );
 }
