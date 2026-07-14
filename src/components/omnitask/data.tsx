@@ -278,13 +278,31 @@ export function useTasks() {
       status: string = "todo",
       description?: string
     ) => {
-      await addTaskMut({
-        title,
-        priority,
-        due_date: due_date || undefined,
-        status: status as "todo" | "in_progress" | "done",
-        description: description || undefined,
-      });
+      try {
+        await addTaskMut({
+          title,
+          priority,
+          due_date: due_date || undefined,
+          status: status as "todo" | "in_progress" | "done",
+          description: description || undefined,
+        });
+      } catch (err: any) {
+        // If the deployed backend has an older validator (without status/description fields),
+        // retry without those fields.
+        if (
+          err?.message?.includes("extra field") ||
+          err?.message?.includes("not in the validator") ||
+          err?.data?.message?.includes("extra field")
+        ) {
+          await addTaskMut({
+            title,
+            priority,
+            due_date: due_date || undefined,
+          });
+        } else {
+          throw err; // Re-throw non-validation errors
+        }
+      }
     },
     [addTaskMut]
   );
