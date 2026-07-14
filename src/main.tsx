@@ -1,3 +1,5 @@
+// ⚠️ Must be first — patches localStorage before any library touches it
+import "./lib/localstorage-patch";
 import '@vly-ai/integrations';
 import { Toaster } from "@/components/ui/sonner";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
