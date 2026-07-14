@@ -17,6 +17,7 @@ import {
   MoreHorizontal,
   Repeat,
   PiggyBank,
+  TrendingUp,
 } from "lucide-react";
 import type { Transaction } from "./data";
 import { Button } from "@/components/ui/button";
@@ -730,6 +731,8 @@ export function FinanceView({
         </>
       )}
     </motion.div>
+  );
+}
   );
 }
 
