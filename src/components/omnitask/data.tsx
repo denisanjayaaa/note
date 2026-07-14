@@ -103,13 +103,26 @@ const ThemeContext = createContext<ThemeContextValue>({
   toggleTheme: () => {},
 });
 
+// Safe localStorage wrapper that doesn't throw in sandboxed iframes
+function safeLocalStorage() {
+  try {
+    return typeof localStorage !== "undefined" ? localStorage : null;
+  } catch {
+    return null;
+  }
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const s = localStorage.getItem("omnitask-theme");
-    if (s === "light" || s === "dark") setTheme(s);
+    const storage = safeLocalStorage();
+    let saved: string | null = null;
+    if (storage) {
+      try { saved = storage.getItem("omnitask-theme"); } catch {}
+    }
+    if (saved === "light" || saved === "dark") setTheme(saved);
     else
       setTheme(
         window.matchMedia("(prefers-color-scheme:dark)").matches
@@ -122,7 +135,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!mounted) return;
     document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem("omnitask-theme", theme);
+    const storage = safeLocalStorage();
+    if (storage) {
+      try { storage.setItem("omnitask-theme", theme); } catch {}
+    }
   }, [theme, mounted]);
 
   if (!mounted)
