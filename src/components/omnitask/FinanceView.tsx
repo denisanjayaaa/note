@@ -733,8 +733,6 @@ export function FinanceView({
     </motion.div>
   );
 }
-  );
-}
 
 // ─── Preview Parsed Result ───
 
